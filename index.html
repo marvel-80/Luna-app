@@ -555,6 +555,42 @@ setBadge('Pronta');
     }
     return v || null;
   }
+<script>
+(function(){
+  const CANDIDATES = [
+    'Federica (premium)',
+    'Federica (qualità elevata)',
+    'Federica (enhanced)',
+    'Federica'
+  ];
+
+  function awaitVoices() {
+    return new Promise(resolve => {
+      const list = speechSynthesis.getVoices();
+      if (list && list.length) return resolve(list);
+      speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+      setTimeout(() => resolve(speechSynthesis.getVoices()), 2000);
+    });
+  }
+
+  async function pickItalianVoice() {
+    const voices = await awaitVoices();
+    let v = voices.find(x =>
+      x.lang === 'it-IT' &&
+      x.name &&
+      CANDIDATES.some(c => x.name.toLowerCase().includes(c.toLowerCase()))
+    );
+    if (!v) {
+      v = voices.find(x => /Federica/i.test((x.voiceURI || '') + ' ' + (x.name || '')));
+    }
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT' && /female|donna/i.test((x.name||'') + ' ' + (x.voiceURI||'')));
+    }
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT');
+    }
+    return v || null;
+  }
 
   const oldSpeak = window.Luna?.api?.speak;
   if (oldSpeak) {
@@ -573,7 +609,48 @@ setBadge('Pronta');
     };
   }
 })();
+(async () => {
+  async function pickItalianVoice() {
+    const voices = await new Promise(resolve => {
+      let v = speechSynthesis.getVoices();
+      if (v.length) return resolve(v);
+      speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+    });
+
+    // cerca Federica o una voce femminile italiana HQ
+    let v = voices.find(x =>
+      x.lang === 'it-IT' &&
+      x.name.toLowerCase().includes('federica')
+    );
+
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT' && /female|donna|it/i.test(x.name));
+    }
+
+    return v || null;
+  }
+
+  const oldSpeak = window.Luna?.api?.speak;
+  if (oldSpeak) {
+    window.Luna.api.speak = async (text) => {
+      if (!text) return;
+
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'it-IT';
+      utter.rate = 0.96;   // velocità
+      utter.pitch = 1.04;  // tono
+
+      const v = await pickItalianVoice();
+      if (v) utter.voice = v;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utter);
+    };
+  }
+})();
 </script>
 </html>
+
+
   
   
