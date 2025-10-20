@@ -931,6 +931,35 @@ let ucc = webView.configuration.userContentController
 ucc.add(bridge, name: "lunaTTS")
 ucc.add(bridge, name: "lunaASR")
 bridge.asr.webView = webView
+document.body.appendChild(b);
+}
+
+// <<--- QUI INCOLLA IL NUOVO BLOCCO "PULSANTE CHIAMATA" --->
+
+// Pulsante per chiamata vocale continua
+if (!document.getElementById('callBtn')) {
+  const c = document.createElement('button');
+  c.id = 'callBtn';
+  c.textContent = '📞 Avvia chiamata';
+  c.style.cssText = 'position:fixed;left:.75rem;bottom:.75rem;z-index:999;';
+  let active = false;
+
+  c.onclick = () => {
+    if (!active) {
+      Luna.audio.startListening();
+      c.textContent = '🔴 Chiudi chiamata';
+      active = true;
+    } else {
+      Luna.audio.stopListening();
+      c.textContent = '📞 Avvia chiamata';
+      active = false;
+    }
+  };
+
+  document.body.appendChild(c);
+}
+
+import AVFoundation
 </script>
 </html>
 
