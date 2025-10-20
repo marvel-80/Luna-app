@@ -862,6 +862,59 @@ class LunaTTS: NSObject {
     return all.first
   }
 }
+import Speech
+import AVFoundation
+import WebKit
+
+class LunaASR: NSObject {
+  private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "it_IT"))
+  private let audioEngine = AVAudioEngine()
+  private var request: SFSpeechAudioBufferRecognitionRequest?
+  private var task: SFSpeechRecognitionTask?
+  weak var webView: WKWebView?
+
+  func start() {
+    SFSpeechRecognizer.requestAuthorization { status in
+      guard status == .authorized else { return }
+      DispatchQueue.main.async { self.beginSession() }
+    }
+  }
+
+  func stop() {
+    task?.cancel(); task = nil
+    audioEngine.stop()
+    audioEngine.inputNode.removeTap(onBus: 0)
+  }
+
+  private func beginSession() {
+    stop()
+    try? AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: .duckOthers)
+    try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+
+    request = SFSpeechAudioBufferRecognitionRequest()
+    request?.shouldReportPartialResults = true
+
+    let input = audioEngine.inputNode
+    let fmt = input.outputFormat(forBus: 0)
+    input.installTap(onBus: 0, bufferSize: 1024, format: fmt) { buffer, _ in
+      self.request?.append(buffer)
+    }
+    audioEngine.prepare()
+    try? audioEngine.start()
+
+    task = recognizer?.recognitionTask(with: request!) { result, error in
+      guard let result = result else { return }
+      let js = """
+      window.onLunaASR && window.onLunaASR({
+        text: \(String(describing: result.bestTranscription.formattedString).debugDescription),
+        isFinal: \(result.isFinal ? "true":"false"),
+        timestamp: \(Date().timeIntervalSince1970)
+      });
+      """
+      self.webView?.evaluateJavaScript(js, completionHandler: nil)
+    }
+  }
+}
 </script>
 </html>
 
