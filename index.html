@@ -1,223 +1,377 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Luna — Assistente</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Luna – assistente locale (v1.4a)</title>
 <style>
 :root{
-  --bg1:#0d0d1a; --bg2:#14162a; --panel:#0b1220; --line:#1e2a45;
-  --text:#e6e6fa; --muted:#9fb0d9; --accent:#6c63ff; --me:#1d3a63;
+  --bg1:#0e0f16; --bg2:#151826;
+  --surface:#1d2133; --bubble:#232844;
+  --text:#e7ecff; --muted:#aab3d9; --accent:#6c84ff; --ok:#44d17c; --warn:#f8c146; --err:#ff6b6b;
 }
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% -10%,var(--bg2),var(--bg1));
-     color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column}
-header{position:sticky;top:0;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.1));
-       backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
-h1{margin:0;font-size:20px;color:#aab7ff}
-.badge{font-size:12px;color:var(--muted)}
-.container{max-width:900px;margin:14px auto;padding:0 14px;display:grid;grid-template-columns:1fr;gap:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-.chat{padding:12px;max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
-.bubble{padding:10px 12px;border-radius:12px;max-width:85%}
-.luna{align-self:flex-start;background:#0f1a30;border:1px solid var(--line)}
-.user{align-self:flex-end;background:var(--me)}
-.bar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
-input[type=text]{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0e172b;color:var(--text)}
-button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#101b33;color:var(--text);cursor:pointer}
-button.primary{background:var(--accent);border-color:transparent;color:#fff}
-.small{font-size:12px;color:var(--muted)}
-/* Settings modal */
-#settings{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;align-items:flex-start;justify-content:center}
-#settings .box{background:#fff;color:#0b1220;border-radius:12px;border:1px solid #d8e1f0;margin-top:6vh;max-width:560px;width:92%;padding:14px}
-#settings .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#settings label{font-size:13px;color:#334}
-#settings input[type=text],#settings select,#settings input[type=range]{width:100%;padding:8px;border:1px solid #c7d2e5;border-radius:8px}
-#gear{margin-left:auto}
-@media (max-width:700px){#settings .grid{grid-template-columns:1fr}}
+*{box-sizing:border-box} html,body{height:100%}
+body{
+  margin:0; color:var(--text); background: radial-gradient(circle at 20% -10%,var(--bg2),var(--bg1));
+  font: 16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Calibri,sans-serif;
+  display:flex; flex-direction:column; align-items:center;
+}
+.app{width:100%; max-width:860px; padding:16px 14px 22px}
+header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:4px 0 8px}
+h1{margin:0; font-size: clamp(20px,4.8vw,28px); letter-spacing:0.3px}
+.badge{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
+.badge .state{display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:99px; background: #20253c;}
+.state b{font-weight:600}
+
+#settingsBtn{all:unset; display:grid; place-items:center; width:40px; height:40px; border-radius:12px;
+  background:var(--surface); cursor:pointer}
+#settingsBtn:active{transform:scale(.98)}
+
+.chat{
+  background: linear-gradient(180deg,#161a2a 0%, #121628 100%);
+  border:1px solid #262b49; border-radius:16px; min-height:58vh; padding:14px; overflow:hidden;
+  display:flex; flex-direction:column; gap:10px;
+}
+.msg{max-width:92%; padding:10px 12px; border-radius:12px; box-shadow:0 1px 0 rgba(0,0,0,.15)}
+.me{align-self:flex-end; background:#1f2645}
+.ai{align-self:flex-start; background:var(--bubble)}
+.msg small{display:block; color:var(--muted); margin-top:6px; font-size:12px}
+
+.footer{
+  position:sticky; bottom:0; background:transparent; padding-top:12px
+}
+.row{display:flex; gap:8px}
+input[type=text]{
+  flex:1; padding:12px 14px; border-radius:12px; outline:none;
+  background:var(--surface); border:1px solid #2a3154; color:var(--text)
+}
+button.primary{
+  border:0; background:var(--accent); color:white; padding:12px 16px; border-radius:12px; font-weight:600; cursor:pointer
+}
+.iconbtn{border:1px solid #2a3154; background:var(--surface); color:var(--text); border-radius:12px; width:48px; height:48px}
+.iconbtn[disabled]{opacity:.55; cursor:not-allowed}
+
+.hint{margin-top:8px; color:var(--muted); font-size:12px}
+kbd{background:#2a3154; padding:1px 6px; border-radius:6px}
+
+.micBadge{
+  display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:10px; font-size:12px;
+  background:#1b2037; border:1px solid #2a3154;
+}
+.micDot{width:10px; height:10px; border-radius:50%; background:#6572a8}
+.micDot.live{background:var(--ok); box-shadow:0 0 0 6px rgba(68,209,124,.15)}
+.meter{height:8px; width:72px; background:#20253c; border-radius:6px; overflow:hidden}
+.meter > i{display:block; height:100%; width:0%; background:linear-gradient(90deg,#65d17e,#6c84ff)}
+
+#panel{
+  position:fixed; inset:auto 0 0 0; transform:translateY(100%); transition:transform .25s;
+  background:#0e1120; border-top:1px solid #2a3154; padding:16px; max-height:86vh; overflow:auto
+}
+#panel.open{transform:none}
+.panelTitle{display:flex; align-items:center; justify-content:space-between}
+.grid{display:grid; gap:12px; grid-template-columns:1fr}
+fieldset{border:1px solid #2a3154; border-radius:12px; padding:12px}
+legend{color:var(--muted)}
+label{display:block; margin:6px 0 4px}
+select,input[type=range],input[type=text].mini{
+  width:100%; padding:10px; border-radius:10px; background:#171c30; border:1px solid #2a3154; color:var(--text)
+}
+.switch{display:flex; align-items:center; gap:8px}
+.switch input{transform:scale(1.2)}
+.small{color:var(--muted); font-size:12px}
+hr.sep{border:0; border-top:1px dashed #2a3154; margin:10px 0}
+a.link{color:#9db1ff; text-decoration:none}
+.themeRow{display:flex; gap:8px; flex-wrap:wrap}
+.themeRow button{border:1px solid #2a3154; background:#171c30; color:var(--text); padding:8px 10px; border-radius:10px}
+.themeRow button.active{outline:2px solid var(--accent)}
 </style>
 </head>
 <body>
+<div class="app">
   <header>
-    <h1 id="title">Luna</h1>
-    <span class="badge">Chat & Voce locale</span>
-    <button id="gear">⚙️</button>
+    <div>
+      <h1>🌙 <span id="assistantName">Luna</span></h1>
+      <div class="badge">
+        <span class="state"><b>Stato:</b> <span id="providerState">Locale</span></span>
+        <span class="micBadge"><span class="micDot" id="micDot"></span> <span id="micText">Idle</span> <span class="meter"><i id="vu"></i></span></span>
+      </div>
+    </div>
+    <button id="settingsBtn" title="Impostazioni">⚙️</button>
   </header>
 
-  <div class="container">
-    <div class="card">
-      <div id="chat" class="chat" aria-live="polite"></div>
-      <div class="bar">
-        <input id="msg" type="text" placeholder="Scrivi un messaggio per Luna…">
-        <button id="send" class="primary">Invia</button>
-        <button id="speak" title="Ripeti ultima risposta">🔊</button>
-        <button id="mic" title="Dettatura">🎤</button>
-      </div>
-      <div class="small" style="padding:0 12px 12px">
-        Comandi vocali: “<em>cambia nome in Aurora</em>”, “<em>voce femminile</em> / <em>voce maschile</em>”,
-        “<em>apri impostazioni</em>”, “<em>chiudi impostazioni</em>”, “<em>velocità 1.1</em>”, “<em>tono 1.05</em>”.
-      </div>
+  <main class="chat" id="chat" aria-live="polite">
+    <div class="msg ai">
+      Ciao! Sono <b id="who">Luna</b>. Scrivimi, oppure premi 🎤 per parlare. Posso leggere le risposte con 🔊.
+      <small>Consigli: “voce femminile”, “cambia nome in Aurora”, “apri impostazioni”.</small>
     </div>
-  </div>
+  </main>
 
-  <!-- Settings -->
-  <div id="settings">
-    <div class="box">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong>Impostazioni</strong>
-        <button id="closeSettings">Chiudi</button>
-      </div>
-
-      <div class="grid">
-        <div>
-          <label>Nome assistente</label>
-          <input id="nameInput" type="text" placeholder="Luna">
-        </div>
-        <div>
-          <label>Voce</label>
-          <select id="voiceSelect"></select>
-          <div class="small">Suggerite: femm. Alice/Silvia/Federica · masc. Luca/Paolo/Vittorio (se presenti sul dispositivo).</div>
-        </div>
-        <div>
-          <label>Velocità</label>
-          <input id="rate" type="range" min="0.8" max="1.3" step="0.01" value="1.0">
-        </div>
-        <div>
-          <label>Tono (pitch)</label>
-          <input id="pitch" type="range" min="0.8" max="1.3" step="0.01" value="1.05">
-        </div>
-        <div>
-          <label>Tema</label>
-          <select id="themeSelect">
-            <option value="auto">Auto (segue sistema)</option>
-            <option value="scuro">Scuro</option>
-            <option value="chiaro">Chiaro</option>
-          </select>
-        </div>
-      </div>
-
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
-        <button id="saveSettings" class="primary">Salva</button>
-      </div>
+  <div class="footer">
+    <div class="row">
+      <input id="input" type="text" placeholder="Scrivi un messaggio per Luna…" autocomplete="off" />
+      <button class="primary" id="sendBtn">Invia</button>
+      <button class="iconbtn" id="speakBtn" title="Parla (tieni premuto su iOS se necessario)">🎤</button>
+      <button class="iconbtn" id="ttsBtn" title="Leggi l’ultimo messaggio">🔊</button>
     </div>
+    <div class="hint">Modalità: <b id="modeHint">Testo</b>. Parlo solo quando il microfono è attivo o quando premi <kbd>🔊</kbd>.</div>
   </div>
+</div>
+
+<!-- pannello impostazioni -->
+<aside id="panel" aria-modal="true" aria-hidden="true">
+  <div class="panelTitle">
+    <h3>Impostazioni di Luna</h3>
+    <button id="closePanel" class="iconbtn">✖️</button>
+  </div>
+  <div class="grid">
+    <fieldset>
+      <legend>Identità</legend>
+      <label>Nome assistente</label>
+      <div class="row">
+        <input id="nameInput" class="mini" type="text" placeholder="Luna" />
+        <button class="iconbtn" id="nameApply" title="Applica">✅</button>
+      </div>
+      <div class="small">Comando vocale rapido: “cambia nome in …”.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Voce</legend>
+      <label>Seleziona voce (preferita: Federica)</label>
+      <select id="voiceSelect"></select>
+      <label>Velocità</label><input id="rate" type="range" min="0.6" max="1.2" step="0.01">
+      <label>Tono</label><input id="pitch" type="range" min="0.8" max="1.2" step="0.01">
+      <div class="small">Profilo consigliato Federica: velocità 0.96 • tono 1.04.</div>
+      <hr class="sep">
+      <div class="switch"><input type="checkbox" id="speakOnlyWhenMic"><label for="speakOnlyWhenMic">Parla solo con microfono attivo</label></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Tema</legend>
+      <div class="themeRow" id="themeRow">
+        <button data-theme="dark" class="active">Scuro</button>
+        <button data-theme="light">Chiaro</button>
+        <button data-theme="midnight">Notte blu</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Avanzate</legend>
+      <div class="small">Provider: <b id="providerInfo">Locale (browser)</b>. Futuri agganci: cloud/locale.</div>
+      <div class="switch"><input type="checkbox" id="confirmBeforeSpeak"><label for="confirmBeforeSpeak">Conferma lettura quando non è stato premuto il microfono</label></div>
+      <button id="resetBtn">Ripristina impostazioni</button>
+    </fieldset>
+  </div>
+</aside>
 
 <script>
-/* ========== Stato & Storage ========== */
-const LS_KEY='luna_settings_v13';
-const chatEl = document.getElementById('chat');
-const msgEl  = document.getElementById('msg');
-function load(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||{name:'Luna',voice:null,rate:1,pitch:1.05,theme:'auto'} }catch{return {name:'Luna',voice:null,rate:1,pitch:1.05,theme:'auto'}}}
-function save(s){ localStorage.setItem(LS_KEY, JSON.stringify(s)); }
-function bubble(t,who='luna'){ const d=document.createElement('div'); d.className='bubble '+(who==='user'?'user':'luna'); d.textContent=t; chatEl.appendChild(d); chatEl.scrollTop=chatEl.scrollHeight; }
-
-/* ========== UI apply ========== */
-function applySettings(s){
-  document.getElementById('title').textContent = s.name||'Luna';
-  document.getElementById('nameInput').value = s.name||'Luna';
-  document.getElementById('rate').value = s.rate||1;
-  document.getElementById('pitch').value = s.pitch||1.05;
-  document.getElementById('themeSelect').value = s.theme||'auto';
-  if(s.theme==='scuro'){ document.documentElement.style.colorScheme='dark'; }
-  else if(s.theme==='chiaro'){ document.documentElement.style.colorScheme='light'; }
-  else { document.documentElement.style.colorScheme='normal'; }
+/* ============ util ============ */
+const $ = s => document.querySelector(s);
+const chat = $("#chat"), input = $("#input");
+function addMsg(text, who='ai'){
+  const div=document.createElement('div');
+  div.className='msg '+(who==='me'?'me':'ai');
+  div.innerHTML = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
 }
+function setBadge(state){ $("#micText").textContent=state; }
+function setDot(live){ $("#micDot").classList.toggle('live', !!live); }
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
 
-/* ========== TTS ========== */
-let voices=[];
-function populateVoices(){
-  voices = speechSynthesis.getVoices();
-  const sel=document.getElementById('voiceSelect'); if(!sel) return;
-  sel.innerHTML='';
-  // preferisci 3 fem + 3 masc se esistono
-  const pref = ['Alice','Silvia','Federica','Luca','Paolo','Vittorio'];
-  const it = voices.filter(v=>/it/i.test(v.lang));
-  const sorted=[...pref.map(n=>it.find(v=>v.name.includes(n))).filter(Boolean),...it.filter(v=>!pref.some(n=>v.name.includes(n)))];
-  for(const v of sorted){ const o=document.createElement('option'); o.value=v.name; o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o); }
-  const s=load(); if(s.voice && sorted.find(v=>v.name===s.voice)) sel.value=s.voice;
+/* ============ settings & memory ============ */
+const store = {
+  get(){ try{return JSON.parse(localStorage.getItem('luna-settings')||'{}')}catch(_){return {}} },
+  set(v){ localStorage.setItem('luna-settings', JSON.stringify(v)); }
+};
+const S = Object.assign({
+  name:'Luna', speakOnlyWhenMic:true, confirmBeforeSpeak:true,
+  rate:0.96, pitch:1.04, voiceName:'Federica', theme:'dark'
+}, store.get());
+
+function applyTheme(theme){
+  const t = theme || S.theme;
+  if(t==='light'){
+    document.documentElement.style.setProperty('--bg1','#f6f9ff');
+    document.documentElement.style.setProperty('--bg2','#e7edff');
+    document.documentElement.style.setProperty('--surface','#ffffff');
+    document.documentElement.style.setProperty('--bubble','#f2f5ff');
+    document.documentElement.style.setProperty('--text','#0e1020');
+    document.documentElement.style.setProperty('--muted','#4b5580');
+  }else if(t==='midnight'){
+    document.documentElement.style.setProperty('--bg1','#0a0b12');
+    document.documentElement.style.setProperty('--bg2','#0f1430');
+    document.documentElement.style.setProperty('--surface','#121735');
+    document.documentElement.style.setProperty('--bubble','#1a2150');
+    document.documentElement.style.setProperty('--text','#eaf0ff');
+    document.documentElement.style.setProperty('--muted','#96a2d9');
+  }else{ // dark (default)
+    document.documentElement.style.cssText = '';
+  }
 }
-if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=populateVoices; setTimeout(populateVoices,300); }
+applyTheme();
 
+/* ============ name & panel ============ */
+$("#assistantName").textContent = S.name; $("#who").textContent=S.name;
+$("#settingsBtn").onclick=()=>$("#panel").classList.add('open');
+$("#closePanel").onclick=()=>$("#panel").classList.remove('open');
+$("#nameInput").value=S.name;
+$("#nameApply").onclick=()=>{
+  const v=$("#nameInput").value.trim()||'Luna';
+  S.name=v; store.set(S);
+  $("#assistantName").textContent=v; $("#who").textContent=v;
+  addMsg(`Nome aggiornato in <b>${v}</b>.`);
+};
+$("#themeRow").addEventListener('click',e=>{
+  if(e.target.tagName!=='BUTTON')return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  S.theme=e.target.dataset.theme; store.set(S); applyTheme();
+});
+
+/* ============ voices (TTS) ============ */
+const voiceSelect=$("#voiceSelect"); const ttsBtn=$("#ttsBtn");
+let voices=[]; let selectedVoice=null;
+function loadVoices(){
+  voices = speechSynthesis.getVoices().filter(v=>v.lang.startsWith('it'));
+  // preferisci Federica
+  let preferred = voices.find(v=>/federica/i.test(v.name)) || voices[0];
+  voiceSelect.innerHTML = '';
+  // Mostra solo poche voci curate, Federica in cima
+  const curated = [];
+  if(preferred) curated.push(preferred);
+  voices.forEach(v=>{ if(!curated.find(x=>x.name===v.name) && curated.length<3) curated.push(v); });
+  curated.forEach(v=>{
+    const opt=document.createElement('option');
+    opt.value=v.name; opt.textContent=v.name + (v.default?' (predefinita)':'');
+    voiceSelect.appendChild(opt);
+  });
+  // selezione iniziale
+  const byName = curated.find(v=>v.name.includes(S.voiceName)) || preferred || curated[0];
+  if(byName){ voiceSelect.value = byName.name; selectedVoice=byName; }
+}
+window.speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+
+voiceSelect.onchange=()=>{ selectedVoice = speechSynthesis.getVoices().find(v=>v.name===voiceSelect.value); S.voiceName=selectedVoice?.name||S.voiceName; store.set(S); };
+$("#rate").value=S.rate; $("#pitch").value=S.pitch;
+$("#rate").oninput=e=>{ S.rate=+e.target.value; store.set(S); };
+$("#pitch").oninput=e=>{ S.pitch=+e.target.value; store.set(S); };
+$("#speakOnlyWhenMic").checked=S.speakOnlyWhenMic;
+$("#speakOnlyWhenMic").onchange=e=>{ S.speakOnlyWhenMic=e.target.checked; store.set(S); };
+$("#confirmBeforeSpeak").checked=S.confirmBeforeSpeak;
+$("#confirmBeforeSpeak").onchange=e=>{ S.confirmBeforeSpeak=e.target.checked; store.set(S); };
+
+$("#resetBtn").onclick=()=>{
+  localStorage.removeItem('luna-settings'); location.reload();
+};
+
+/* ============ speak helper ============ */
 function speak(text){
-  if(!('speechSynthesis' in window)) return;
-  const s=load();
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='it-IT';
-  u.rate=s.rate||1; u.pitch=s.pitch||1.05;
-  if(s.voice){ const v=voices.find(v=>v.name===s.voice); if(v) u.voice=v; }
-  else{ const v=voices.find(v=>/it/i.test(v.lang)); if(v) u.voice=v; }
+  if(!text) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = selectedVoice || speechSynthesis.getVoices().find(v=>/federica/i.test(v.name));
+  u.lang = 'it-IT';
+  u.rate = S.rate; u.pitch = S.pitch;
   speechSynthesis.cancel(); speechSynthesis.speak(u);
 }
 
-/* ========== STT + comandi ========== */
-let rec=null;
-function startRec(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ bubble('Il riconoscimento vocale non è supportato su questo dispositivo.','luna'); return; }
-  rec=new SR(); rec.lang='it-IT'; rec.interimResults=false; rec.maxAlternatives=1;
-  rec.onresult= async (e)=>{ const text=e.results[0][0].transcript; bubble(text,'user'); if(await handleCommand(text)) return; reply(text); };
+/* ============ simple NLU ============ */
+function replyTo(input){
+  const t = input.toLowerCase().trim();
+
+  // saluti/mi senti
+  if(/(ciao|buongiorno|buonasera)/.test(t)) return "Ciao! Tutto bene, sono qui. Come posso aiutarti?";
+  if(/(mi senti|sei li|ci sei)/.test(t)) return "Sì, ti sento. Dimmi pure.";
+  if(/come stai/.test(t)) return "Sto bene, grazie! Pronta a darti una mano.";
+
+  // impostazioni rapide
+  const m = t.match(/cambia nome in (.+)$/i); if(m){ const newName=m[1].trim(); $("#nameInput").value=newName; $("#nameApply").click(); return `Ok, da ora mi chiamo ${newName}.`; }
+  if(/voce femminile/.test(t)) { // già federica, conferma
+    return "Uso la voce femminile. Se vuoi posso parlare un po’ più dolce o più energica.";
+  }
+  if(/apri impostazioni/.test(t)) { $("#panel").classList.add('open'); return "Apro le impostazioni."; }
+  if(/chiudi impostazioni/.test(t)) { $("#panel").classList.remove('open'); return "Chiuso."; }
+  if(/(tema|colore).*(scuro)/.test(t)){ S.theme='dark'; store.set(S); applyTheme(); return "Imposto il tema scuro."; }
+  if(/(tema|colore).*(chiaro)/.test(t)){ S.theme='light'; store.set(S); applyTheme(); return "Imposto il tema chiaro."; }
+
+  // fallback
+  return "Ricevuto. Vuoi che faccia qualcosa in particolare?";
+}
+
+/* ============ STT (microfono) ============ */
+const speakBtn=$("#speakBtn"); const vu=$("#vu"); const modeHint=$("#modeHint");
+let rec=null, listening=false, meterInt=null;
+function supportedSTT(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
+
+function startMic(){
+  if(listening) return;
+  if(!supportedSTT()){ addMsg("Il riconoscimento vocale non è supportato da questo browser.",'ai'); return; }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  rec = new R(); rec.lang='it-IT'; rec.interimResults=true; rec.continuous=false;
+  let buffer='';
+
+  rec.onstart=()=>{ listening=true; setBadge('Ascolto'); setDot(true); modeHint.textContent='Voce'; animateMeter(); };
+  rec.onresult=e=>{
+    let final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const res=e.results[i];
+      if(res.isFinal){ final += res[0].transcript; }
+      else { buffer = res[0].transcript; }
+    }
+    if(final){
+      stopMeter();
+      setDot(false); setBadge('Elaboro…');
+      addMsg(final,'me');
+      const out = replyTo(final);
+      const node = addMsg(out,'ai');
+      if(!S.speakOnlyWhenMic || (S.speakOnlyWhenMic && listening)) speak(out);
+      setBadge('Pronta');
+    }
+  };
+  rec.onerror=e=>{ stopMeter(); setDot(false); setBadge('Errore microfono'); console.warn(e); };
+  rec.onend=()=>{ listening=false; stopMeter(); setDot(false); setBadge('Pronta'); };
+
   rec.start();
 }
-function toNum(x){ return parseFloat(String(x).replace(',','.')); }
-function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function stopMic(){ if(rec){ try{rec.stop();}catch(_){}} }
+function animateMeter(){
+  stopMeter();
+  meterInt=setInterval(()=>{ const w = Math.floor(Math.random()*70)+10; vu.style.width=w+'%'; }, 80);
+}
+function stopMeter(){ if(meterInt){ clearInterval(meterInt); meterInt=null; } vu.style.width='0%'; }
 
-async function handleCommand(tRaw){
-  const t=tRaw.trim().toLowerCase(); let s=load(); let changed=false;
-  // nome
-  let m=t.match(/cambia (il )?nome (in|a)\s+(.+)/i) || t.match(/chiamami\s+(.+)/i) || t.match(/il tuo nome è\s+(.+)/i);
-  if(m){ const name=(m[3]||m[1]||m[4]||m[0]).replace(/^(in|a)\s*/,'').trim(); if(name){ s.name=capitalize(name); changed=true; } }
-  // voce
-  if(/voce\s+(femminile|donna)/i.test(t)){ const pick=voices.find(v=>/it/i.test(v.lang) && /(Alice|Silvia|Federica|fem|female)/i.test(v.name))||voices.find(v=>/it/i.test(v.lang)); if(pick){ s.voice=pick.name; changed=true; } }
-  if(/voce\s+(maschile|uomo)/i.test(t)){ const pick=voices.find(v=>/it/i.test(v.lang) && /(Luca|Paolo|Vittorio|masch|male)/i.test(v.name))||voices.find(v=>/it/i.test(v.lang)); if(pick){ s.voice=pick.name; changed=true; } }
-  // velocità & tono
-  m=t.match(/velocit[aà]\s*(a|=)?\s*([0-9]+[.,]?[0-9]*)/i); if(m){ s.rate=clamp(toNum(m[2]),0.8,1.3); changed=true; }
-  if(/aumenta velocit/i.test(t)) { s.rate=clamp((s.rate||1)+0.05,0.8,1.3); changed=true; }
-  if(/(riduci|abbassa) velocit/i.test(t)) { s.rate=clamp((s.rate||1)-0.05,0.8,1.3); changed=true; }
-  m=t.match(/(tono|pitch|timbro)\s*(a|=)?\s*([0-9]+[.,]?[0-9]*)/i); if(m){ s.pitch=clamp(toNum(m[3]),0.8,1.3); changed=true; }
-  // tema
-  if(/tema scuro|dark/i.test(t)){ s.theme='scuro'; changed=true; }
-  if(/tema chiaro|light/i.test(t)){ s.theme='chiaro'; changed=true; }
-  if(/tema auto|automatico/i.test(t)){ s.theme='auto'; changed=true; }
-  // impostazioni pannello
-  if(/apri (le )?impostazioni/i.test(t)){ document.getElementById('settings').style.display='flex'; return true; }
-  if(/chiudi (le )?impostazioni/i.test(t)){ document.getElementById('settings').style.display='none'; return true; }
-
-  if(changed){ save(s); applySettings(s); speak('Impostazioni aggiornate.'); return true; }
-  return false;
+speakBtn.onclick=()=>{
+  if(listening){ stopMic(); }
+  else { startMic(); }
 }
 
-/* ========== Chat demo locale ========== */
-function reply(text){
-  const s=load();
-  const r = `Ciao, sono ${s.name}. Hai detto: “${text}”. Posso cambiare nome o voce dalle impostazioni.`;
-  bubble(r,'luna'); speak(r);
+/* ============ send text ============ */
+$("#sendBtn").onclick=sendText;
+input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ sendText(); }});
+function sendText(){
+  const v = input.value.trim(); if(!v) return;
+  addMsg(v, 'me'); input.value='';
+  const out = replyTo(v);
+  const node = addMsg(out,'ai');
+  if(!S.speakOnlyWhenMic){
+    if(S.confirmBeforeSpeak){ /* solo su richiesta esplicita */
+      // non parlare automaticamente
+    } else { speak(out); }
+  }
 }
 
-/* ========== Eventi UI ========== */
-document.getElementById('send').onclick=()=>{ const v=msgEl.value.trim(); if(!v) return; msgEl.value=''; bubble(v,'user'); handleCommand(v).then(done=>{ if(!done) reply(v); }); };
-msgEl.addEventListener('keydown',(e)=>{ if(e.key==='Enter') document.getElementById('send').click(); });
-document.getElementById('speak').onclick=()=>{ const last=chatEl.querySelector('.bubble.luna:last-child')?.textContent || `Ciao, sono ${load().name}.`; speak(last); };
-document.getElementById('mic').onclick=startRec;
-
-document.getElementById('gear').onclick=()=>{ document.getElementById('settings').style.display='flex'; };
-document.getElementById('closeSettings').onclick=()=>{ document.getElementById('settings').style.display='none'; };
-document.getElementById('saveSettings').onclick=()=>{
-  const s=load();
-  s.name=document.getElementById('nameInput').value.trim()||'Luna';
-  s.rate=parseFloat(document.getElementById('rate').value);
-  s.pitch=parseFloat(document.getElementById('pitch').value);
-  s.theme=document.getElementById('themeSelect').value;
-  const chosen=document.getElementById('voiceSelect').value; s.voice=chosen||null;
-  save(s); applySettings(s); document.getElementById('settings').style.display='none'; speak('Impostazioni salvate.');
+/* ============ read last ============ */
+ttsBtn.onclick=()=>{
+  const last = [...document.querySelectorAll('.msg.ai')].pop();
+  if(!last) return;
+  speak(last.textContent.trim());
 };
 
-/* ========== Boot ========== */
-(function boot(){
-  const s=load(); applySettings(s);
-  bubble('Ciao! Sono Luna. Scrivimi o usa 🎤 per parlare. Posso leggere le risposte con 🔊.','luna');
-  populateVoices();
-})();
+/* ============ initial UI ============ */
+$("#providerState").textContent='Locale';
+$("#providerInfo").textContent='Locale (Web Speech API)';
+$("#modeHint").textContent = S.speakOnlyWhenMic ? 'Testo (voce con microfono)' : 'Testo+Voce';
+setBadge('Pronta');
 </script>
 </body>
 </html>
