@@ -455,6 +455,28 @@ setBadge('Pronta');
     catch (e) { return oldReply ? oldReply(input) : "Ok!"; }
   };
 })();
+<script>
+// --- Preferenze voce iOS/Safari ---
+const PREFERRED_VOICE_NAME = 'Federica';
+const PREFERRED_LANG = 'it-IT';
+
+// Aspetta che Safari carichi l’elenco delle voci
+function waitForVoices() {
+  return new Promise(resolve => {
+    const have = speechSynthesis.getVoices();
+    if (have && have.length) return resolve(have);
+    speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+  });
+}
+
+// Prova a prendere Federica; in fallback qualsiasi voce italiana
+async function getPreferredVoice() {
+  const voices = await waitForVoices();
+  let v = voices.find(v => /federica/i.test(v.name));
+  if (!v) v = voices.find(v => (v.lang || '').toLowerCase().startsWith('it'));
+  return v || voices[0] || null;
+}
+</script>
 </script>
 </script>
   </html>
