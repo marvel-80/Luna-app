@@ -957,9 +957,195 @@ if (!document.getElementById('callBtn')) {
   };
 
   document.body.appendChild(c);
-}
+  <script>
+/* =========================================
+   LUNA: Voce unica femminile + chiamata continua
+   (auto-override, auto-hide vecchio menu voci)
+   ========================================= */
+(function () {
+  // ------- 1) Utility DOM -------
+  function hideVoiceSelectCompletely() {
+    // prova a trovare un <select> che contiene Eddy/Sandy/Reed
+    const selects = Array.from(document.querySelectorAll('select, .select, [role="listbox"]'));
+    const isVoiceSelect = (el) => {
+      const txt = el.innerText + ' ' + (el.value || '');
+      return /Eddy|Sandy|Reed/i.test(txt);
+    };
+    const voiceSel = selects.find(isVoiceSelect);
+    if (voiceSel) {
+      // nasconde il contenitore più ampio (riga impostazioni)
+      let row = voiceSel.closest('[class*="row"], [class*="group"], .setting, .form-group, .field') || voiceSel.parentElement;
+      if (row) row.style.display = 'none';
+    }
+    // Etichetta informativa (opzionale)
+    if (!document.getElementById('luna-voice-badge')) {
+      const badge = document.createElement('div');
+      badge.id = 'luna-voice-badge';
+      badge.textContent = 'Voce: femminile (forzata)';
+      badge.style.cssText = 'margin-top:.5rem;opacity:.7;font-size:.9rem;';
+      // infilalo nella sezione "Voce" se esiste
+      const voiceSection = Array.from(document.querySelectorAll('h3,h2,legend,label'))
+        .find(x => /voce/i.test(x.textContent));
+      (voiceSection && voiceSection.parentElement || document.body).appendChild(badge);
+    }
+  }
 
-import AVFoundation
+  // esegui hide appena pronto il DOM, e anche dopo piccole attese (UI dinamica)
+  const ob = new MutationObserver(hideVoiceSelectCompletely);
+  ob.observe(document.documentElement, {subtree:true, childList:true});
+  if (document.readyState !== 'loading') hideVoiceSelectCompletely();
+  else document.addEventListener('DOMContentLoaded', hideVoiceSelectCompletely);
+
+  // ------- 2) Forza VOCE FEMMINILE (Web Speech, lato browser) -------
+  // Nota: su Safari iOS spesso compaiono solo 2-3 voci. Qui scegliamo comunque
+  // la migliore femminile disponibile (preferendo "Sandy" o nomi femminili).
+  const FEMALE_HINTS = ['sandy','federica','alice','giulia','carla','elena','sofia','female','donna','femmina'];
+
+  function waitForVoices() {
+    return new Promise((resolve) => {
+      const have = speechSynthesis.getVoices();
+      if (have && have.length) return resolve(have);
+      speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+      // in Safari l’evento a volte non arriva: fallback
+      setTimeout(() => resolve(speechSynthesis.getVoices() || []), 800);
+    });
+  }
+
+  async function pickFemaleItalianVoice() {
+    const voices = await waitForVoices();
+    // 1) filtra it-IT
+    let it = voices.filter(v => /it[-_]?IT/i.test(v.lang || ''));
+    // 2) preferisci nomi femminili
+    let fem = it.find(v => FEMALE_HINTS.some(h => (v.name||'').toLowerCase().includes(h)));
+    // 3) se non trovata, prova "Sandy" (di solito femminile)
+    if (!fem) fem = voices.find(v => /sandy/i.test(v.name||''));
+    // 4) sennò prendi la prima it-IT, altrimenti la prima disponibile
+    return fem || it[0] || voices[0] || null;
+  }
+
+  // ------- 3) Override TTS (sostituisce qualunque speak esistente) -------
+  const oldApi = (window.Luna && window.Luna.api) || {};
+  window.Luna = window.Luna || {};
+  window.Luna.api = {...oldApi};
+
+  window.Luna.api.speak = async function (text) {
+    try {
+      if (!text) return;
+      const v = await pickFemaleItalianVoice();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang  = (v && v.lang) || 'it-IT';
+      u.voice = v || null;
+      u.rate  = 0.96;
+      u.pitch = 1.04;
+      // stop prima di parlare
+      try { speechSynthesis.cancel(); } catch {}
+      speechSynthesis.speak(u);
+    } catch (e) {
+      console.warn('TTS fallback error:', e);
+    }
+  };
+
+  // ------- 4) “Chiamata” continua (ASR con riavvio automatico) -------
+  // Funziona dove c’è webkitSpeechRecognition (Safari iOS ha supporto parziale).
+  // Resta in ascolto e si riavvia da sola dopo ogni end, finché non chiami stopCall().
+  let rec = null;
+  let recWanted = false;
+
+  function createRecognizer() {
+    const R = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
+    R.lang = 'it-IT';
+    R.interimResults = true;
+    R.continuous = true; // Safari spesso lo ignora, ma la riavviamo noi
+    R.onresult = (ev) => {
+      const last = ev.results[ev.results.length - 1];
+      if (!last) return;
+      const txt = last[0] && last[0].transcript || '';
+      const isFinal = !!last.isFinal;
+
+      // Mostra in UI (se hai una funzione per aggiornare input live)
+      if (window.onPartialTranscript && !isFinal) window.onPartialTranscript(txt);
+
+      if (isFinal) {
+        // Invia al motore di risposta
+        if (window.sendUserText) window.sendUserText(txt);
+      }
+    };
+    R.onerror = (e) => {
+      // piccoli errori sono normali su iOS; tentiamo il riavvio se la chiamata è attiva
+      setTimeout(() => { if (recWanted) safeStart(); }, 350);
+    };
+    R.onend = () => {
+      if (recWanted) setTimeout(() => safeStart(), 250);
+    };
+    return R;
+  }
+
+  function safeStart() {
+    try {
+      if (!rec) rec = createRecognizer();
+      rec.start();
+    } catch (e) {
+      // se "already started", ignoriamo; altrimenti riproviamo
+      if (String(e).toLowerCase().includes('started')) return;
+      setTimeout(safeStart, 300);
+    }
+  }
+
+  async function startCall() {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Il riconoscimento vocale continuo non è supportato su questo browser.');
+      return;
+    }
+    recWanted = true;
+    safeStart();
+    showCallUI(true);
+  }
+
+  function stopCall() {
+    recWanted = false;
+    try { rec && rec.stop(); } catch {}
+    showCallUI(false);
+  }
+
+  // ------- 5) Piccola UI: pulsanti “Avvia/Chiudi chiamata” -------
+  function showCallUI(active) {
+    let bar = document.getElementById('luna-callbar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'luna-callbar';
+      bar.style.cssText =
+        'position:fixed;right:14px;bottom:14px;display:flex;gap:8px;z-index:99999';
+      const btnStart = document.createElement('button');
+      btnStart.id = 'luna-call-start';
+      btnStart.textContent = '📞 Avvia chiamata';
+      const btnStop  = document.createElement('button');
+      btnStop.id = 'luna-call-stop';
+      btnStop.textContent  = '🛑 Chiudi chiamata';
+      [btnStart, btnStop].forEach(b=>{
+        b.style.cssText = 'padding:.6rem .8rem;border-radius:.7rem;border:0;cursor:pointer';
+        b.style.background = 'var(--btn-bg, #2b6)';
+        b.style.color = '#fff';
+        b.onmouseenter = ()=> b.style.filter='brightness(0.95)';
+        b.onmouseleave = ()=> b.style.filter='';
+      });
+      btnStart.onclick = startCall;
+      btnStop.onclick  = stopCall;
+      bar.appendChild(btnStart);
+      bar.appendChild(btnStop);
+      document.body.appendChild(bar);
+    }
+    const s = document.getElementById('luna-call-start');
+    const t = document.getElementById('luna-call-stop');
+    if (s && t) {
+      s.style.display = active ? 'none' : 'inline-block';
+      t.style.display = active ? 'inline-block' : 'none';
+    }
+  }
+
+  // Se vuoi partire già “pronta per la chiamata”, lascia commentata:
+  // startCall();
+
+})();
 </script>
 </html>
 
