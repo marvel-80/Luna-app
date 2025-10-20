@@ -647,6 +647,96 @@ setBadge('Pronta');
       speechSynthesis.speak(utter);
     };
   }
+})()
+<script>
+/* ========== Modulo Voce Luna (forza femminile IT, preferenza Federica premium) ========== */
+(function () {
+  /* ---- nomi candidati “Federica” in iOS (varianti) ---- */
+  const PREFERRED_NAMES = [
+    'Federica', 'Federica (enhanced)', 'Federica (premium)', 'Federica (qualità elevata)'
+  ];
+  /* ---- altri possibili nomi femminili IT (fallback) ---- */
+  const FEMALE_HINTS = [
+    'alice','bianca','chiara','giulia','ilaria','isabella','lucia','martina','sara','sofia','valentina'
+  ];
+
+  const isIt = v => v && v.lang && v.lang.toLowerCase().startsWith('it');
+  const hasName = (v, list) => list.some(n => (v.name || '').toLowerCase().includes(n.toLowerCase()));
+
+  /* Safari carica le voci in ritardo: attendi con polling breve */
+  function waitForVoices() {
+    return new Promise(resolve => {
+      let tries = 0;
+      const tick = () => {
+        const list = speechSynthesis.getVoices();
+        if (list && list.length) return resolve(list);
+        if (++tries > 20) return resolve(list); // ~3s massimo
+        setTimeout(tick, 150);
+      };
+      /* attiva anche l’evento se esiste */
+      if ('onvoiceschanged' in speechSynthesis) {
+        speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+      }
+      tick();
+    });
+  }
+
+  async function pickItalianFemale() {
+    const list = await waitForVoices();
+    if (!list || !list.length) return null;
+
+    // 1) prova Federica (premium/enhanced)
+    let v = list.find(x => isIt(x) && hasName(x, PREFERRED_NAMES));
+    // 2) altrimenti qualunque nome femminile noto
+    if (!v) v = list.find(x => isIt(x) && hasName(x, FEMALE_HINTS));
+    // 3) fallback: qualunque voce italiana
+    if (!v) v = list.find(isIt);
+    return v || null;
+  }
+
+  /* Sovrascrivi la sintesi di Luna per usare sempre la voce scelta qui */
+  const oldSpeak = window.Luna?.api?.speak;
+  if (oldSpeak) {
+    window.Luna.api.speak = async function (text) {
+      if (!text) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'it-IT';
+      u.rate = 0.96;   // velocità consigliata
+      u.pitch = 1.04;  // timbro leggermente più alto
+
+      const v = await pickItalianFemale();
+      if (v) u.voice = v;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    };
+  }
+
+  /* “Ripulisci” il menù voci nell’UI: rimuovi Eddy/Sandy/Reed e lascialo fisso */
+  function rewriteVoiceMenu() {
+    const selects = document.querySelectorAll('select');
+    for (const s of selects) {
+      const texts = [...s.options].map(o => (o.textContent||'').toLowerCase());
+      // se contiene le voci predefinite maschili, sostituisci il menù
+      if (texts.some(t => t.startsWith('eddy')) || texts.some(t => t.startsWith('sandy')) || texts.some(t => t.startsWith('reed'))) {
+        s.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.value = 'federica-auto';
+        opt.textContent = 'Federica (automatica)';
+        s.appendChild(opt);
+        s.disabled = true; // lo rendiamo non modificabile
+        // suggerimento visivo (se c’è una label vicino)
+        const lbl = s.closest('div,section,fieldset')?.querySelector('label, .label, .title');
+        if (lbl && lbl.textContent.toLowerCase().includes('seleziona voce')) {
+          lbl.textContent = 'Voce (fissa): Federica';
+        }
+      }
+    }
+  }
+  // applica subito e anche quando si aprono/impostazioni cambiano
+  rewriteVoiceMenu();
+  const obs = new MutationObserver(rewriteVoiceMenu);
+  obs.observe(document.documentElement, { childList: true, subtree: true });
 })();
 </script>
 </html>
