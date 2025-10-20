@@ -1,64 +1,201 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Luna Figlia – AI Assistant</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Luna Figlia — Chat & Voce (base)</title>
   <style>
-    body {
-      background: radial-gradient(circle at top, #1a1a2e, #0d0d1a);
-      color: #e6e6fa;
-      font-family: "Segoe UI", sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      text-align: center;
+    :root{
+      --bg1:#0d0d1a; --bg2:#14162a;
+      --primary:#8ea4ff; --primary-2:#b8c2ff;
+      --accent:#6c63ff; --text:#e6e6fa; --muted:#9aa0c3;
+      --bubble:#1b1d34; --me:#2a2f55;
     }
-
-    h1 {
-      font-size: 2.4em;
-      color: #b8aaff;
-      text-shadow: 0 0 15px #8b80ff;
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; color:var(--text);
+      background: radial-gradient(circle at 20% 10%, var(--bg2), var(--bg1) 65%);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      display:flex; flex-direction:column; align-items:center;
     }
-
-    h2 {
-      font-size: 1.3em;
-      color: #cfcfff;
-      max-width: 500px;
+    header{ width:100%; max-width:860px; padding:22px 18px 8px; text-align:center; }
+    h1{
+      margin:8px 0 2px; font-size: clamp(26px, 6vw, 40px); letter-spacing:.4px;
+      color:var(--primary); text-shadow: 0 0 18px rgba(140,160,255,.35);
     }
-
-    button {
-      background-color: #6c63ff;
-      border: none;
-      padding: 12px 25px;
-      color: #fff;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1em;
-      margin-top: 25px;
-      transition: background 0.3s;
+    .sub{color:var(--muted); font-size:clamp(14px, 3.2vw, 16px)}
+    .badge{display:inline-block; padding:6px 10px; border:1px solid #2f3263; border-radius:999px; font-size:12px; color:#c9ccff; margin-top:8px}
+    main{width:100%; max-width:860px; flex:1; display:flex; flex-direction:column; gap:10px; padding:10px 12px 16px}
+    .chat{
+      flex:1; min-height:50vh; background:rgba(255,255,255,.03); border:1px solid #2a2d52;
+      border-radius:14px; padding:12px; overflow:auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
     }
-
-    button:hover {
-      background-color: #837aff;
+    .row{display:flex; gap:10px; align-items:center; margin-top:10px}
+    input[type="text"]{
+      flex:1; background:#12142a; border:1px solid #2a2d52; color:var(--text);
+      padding:12px 14px; border-radius:12px; outline:none; font-size:16px;
     }
-
-    footer {
-      position: absolute;
-      bottom: 15px;
-      font-size: 0.9em;
-      color: #7a7a99;
+    button{
+      background:var(--accent); color:white; border:none; padding:12px 14px;
+      border-radius:12px; font-size:15px; cursor:pointer
     }
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .ghost{background:#1b1d34; color:var(--primary-2); border:1px solid #2a2d52}
+    .bubble{max-width:80%; padding:10px 12px; margin:6px 0; border-radius:12px; line-height:1.35}
+    .luna{background:var(--bubble); border:1px solid #2a2d52}
+    .me{background:var(--me); border:1px solid #3a3f77; margin-left:auto}
+    .who{font-size:12px; color:#b8baf0; margin-bottom:2px}
+    footer{width:100%; max-width:860px; padding:8px 12px 18px; text-align:center; color:#8a8fb6; font-size:12px}
+    .pill{display:inline-flex; gap:6px; align-items:center; border:1px solid #2f3263; padding:6px 10px; border-radius:999px}
+    .hint{font-size:12px; color:#aab0df; margin-top:4px}
   </style>
 </head>
 <body>
-  <h1>🌙 Benvenuto in Luna Figlia</h1>
-  <h2>La tua intelligenza virtuale personale è pronta a crescere passo dopo passo.</h2>
-  <button onclick="alert('✨ Luna è pronta ad accendersi! ✨')">Attiva Luna</button>
+  <header>
+    <div class="badge">🌙 Progetto Luna — versione base v1.2</div>
+    <h1>Benvenuto in <strong>Luna Figlia</strong></h1>
+    <div class="sub">Chat testuale pronta. Voce: parlato in uscita; microfono se supportato dal browser.</div>
+  </header>
 
-  <footer>Versione base v1.1 – © 2025 Progetto Luna</footer>
+  <main>
+    <div id="chat" class="chat" aria-live="polite"></div>
+
+    <div class="row">
+      <input id="msg" type="text" placeholder="Scrivi un messaggio per Luna…" autocomplete="off" />
+      <button id="send">Invia</button>
+      <button id="speakBtn" class="ghost" title="Leggi a voce">🔈</button>
+      <button id="micBtn" class="ghost" title="Dettatura (se disponibile)">🎤</button>
+    </div>
+    <div id="voiceHint" class="hint"></div>
+  </main>
+
+  <footer>
+    <div class="pill">⚠️ Tutto locale e gratuito · Nessuna connessione AI esterna (per ora)</div>
+  </footer>
+
+  <script>
+    // --- Utilità DOM ---
+    const chat = document.getElementById('chat');
+    const msg  = document.getElementById('msg');
+    const send = document.getElementById('send');
+    const speakBtn = document.getElementById('speakBtn');
+    const micBtn   = document.getElementById('micBtn');
+    const voiceHint= document.getElementById('voiceHint');
+
+    function addBubble(text, who='luna'){
+      const wrap = document.createElement('div');
+      const name = document.createElement('div');
+      const b    = document.createElement('div');
+      name.className='who';
+      name.textContent = who==='me' ? 'Tu' : 'Luna';
+      b.className = 'bubble ' + (who==='me' ? 'me' : 'luna');
+      b.textContent = text;
+      wrap.appendChild(name); wrap.appendChild(b);
+      chat.appendChild(wrap);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // --- Voce: sintesi (TTS) ---
+    let itVoice = null;
+    function chooseVoice(){
+      const voices = speechSynthesis.getVoices();
+      itVoice = voices.find(v => /it-|Italian/.test(v.lang)) || voices[0] || null;
+    }
+    if ('speechSynthesis' in window){
+      chooseVoice();
+      window.speechSynthesis.onvoiceschanged = chooseVoice;
+      speakBtn.onclick = () => {
+        // leggi l’ultima risposta di Luna
+        const bubbles = chat.querySelectorAll('.bubble.luna');
+        if(!bubbles.length) return;
+        speak(bubbles[bubbles.length-1].textContent);
+      }
+    } else {
+      speakBtn.disabled = true;
+      speakBtn.title = "Lettura vocale non supportata da questo browser.";
+    }
+
+    function speak(text){
+      if(!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      if(itVoice) u.voice = itVoice;
+      u.lang = itVoice?.lang || 'it-IT';
+      u.rate = 1; u.pitch = 1.02; u.volume = 1;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
+
+    // --- Voce: riconoscimento (se disponibile) ---
+    let rec = null, recognizing=false;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR){
+      rec = new SR();
+      rec.lang = 'it-IT';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = ()=>{ recognizing=true; micBtn.textContent = '🛑'; micBtn.classList.remove('ghost'); };
+      rec.onend   = ()=>{ recognizing=false; micBtn.textContent = '🎤'; micBtn.classList.add('ghost'); };
+      rec.onerror = ()=>{ recognizing=false; micBtn.textContent = '🎤'; };
+
+      rec.onresult = (e)=>{
+        const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
+        if(text.trim()){
+          msg.value = text.trim();
+          handleSend();
+        }
+      };
+
+      micBtn.onclick = ()=>{
+        if(!recognizing) rec.start(); else rec.stop();
+      };
+      voiceHint.textContent = '🎤 Dettatura disponibile sul tuo browser.';
+    } else {
+      micBtn.disabled = true;
+      voiceHint.textContent = '🎤 Dettatura non disponibile su questo dispositivo/navigatore. Puoi comunque scrivere e ascoltare la risposta.';
+    }
+
+    // --- Bot locale (placeholder) ---
+    function lunaReply(userText){
+      const t = userText.toLowerCase().trim();
+
+      // Regole semplici
+      if(!t) return "Dimmi pure, ti ascolto.";
+      if(/ciao|buongiorno|buonasera|hey/.test(t)) return "Ciao! Sono qui. Come posso aiutarti?";
+      if(/come stai/.test(t)) return "Bene grazie! E tu?";
+      if(/nome/.test(t)) return "Mi chiamo Luna Figlia. Piacere!";
+      if(/(che )?ora|orario/.test(t)) return `Sono le ${new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})}.`;
+      if(/data|che giorno/.test(t)) return `Oggi è ${new Date().toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'})}.`;
+      if(/chi ti ha creat|cos\'?è luna/.test(t)) return "Sei tu il mio creatore! Questa è una versione base che crescerà passo dopo passo.";
+      if(/aiut|cosa sai fare|funzion/i.test(t)) return "Per ora posso chattare, leggere a voce e (se possibile) ascoltare tramite microfono. A breve aggiungeremo funzioni più intelligenti!";
+
+      // mini “risposte empatiche”
+      if(/grazie|thank/.test(t)) return "Di nulla! 💫";
+      if(/ok|va bene/.test(t)) return "Perfetto. Procediamo!";
+
+      // Fallback
+      return "Ho capito. Per ora sono una versione base: spiegami meglio e ci provo!";
+    }
+
+    // --- Gestione invio ---
+    function handleSend(){
+      const text = msg.value.trim();
+      if(!text) return;
+      addBubble(text, 'me');
+      msg.value = '';
+      const reply = lunaReply(text);
+      setTimeout(()=>{
+        addBubble(reply, 'luna');
+        speak(reply); // parla sempre la risposta (puoi cambiare se vuoi)
+      }, 200);
+    }
+
+    send.onclick = handleSend;
+    msg.addEventListener('keydown', (e)=>{ if(e.key==='Enter') handleSend(); });
+
+    // Messaggio di benvenuto
+    addBubble("Ciao! Sono Luna. Scrivimi un messaggio, premi Invia oppure usa 🎤 se disponibile. Posso anche leggere le risposte con 🔈.", 'luna');
+  </script>
 </body>
 </html>
