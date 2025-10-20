@@ -738,6 +738,97 @@ setBadge('Pronta');
   const obs = new MutationObserver(rewriteVoiceMenu);
   obs.observe(document.documentElement, { childList: true, subtree: true });
 })();
+<script>
+// ====== ADAPTER AUDIO LUNA (nativo se disponibile, altrimenti web) ======
+window.Luna = window.Luna || {};
+Luna.audio = Luna.audio || {};
+
+// Rileva bridge nativo (WKWebView)
+const _hasNative = !!(window.webkit && window.webkit.messageHandlers && (
+  window.webkit.messageHandlers.lunaTTS || window.webkit.messageHandlers.lunaASR
+));
+
+// Espone helper per postMessage sicuro
+function _nativePost(handler, payload) {
+  try { window.webkit.messageHandlers[handler].postMessage(payload); }
+  catch(e){ console.warn('Bridge native non disponibile:', handler, e); }
+}
+
+// ---- SPEAK: preferisci nativo, fallback web ----
+Luna.audio.speak = async function(text, opts = {}) {
+  if (!text) return;
+
+  // preferisci nativo se presente
+  if (_hasNative && window.webkit.messageHandlers.lunaTTS) {
+    _nativePost('lunaTTS', {
+      text,
+      lang: opts.lang || 'it-IT',
+      rate: opts.rate ?? 0.96,
+      pitch: opts.pitch ?? 1.04,
+      voiceHint: opts.voiceHint || 'Federica',   // suggerimento
+      category: 'playback'
+    });
+    return;
+  }
+
+  // ---- Fallback web (usa la tua funzione di pick/voice già presente) ----
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang  = opts.lang  || 'it-IT';
+    u.rate  = opts.rate  ?? 0.96;
+    u.pitch = opts.pitch ?? 1.04;
+
+    // prova a prendere una voce italiana (Federica se disponibile)
+    const voices = speechSynthesis.getVoices();
+    let v = voices.find(x => x.lang === 'it-IT' && /federica/i.test(x.name));
+    if (!v) v = voices.find(x => x.lang === 'it-IT');
+    if (v) u.voice = v;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  } catch(e) {
+    console.warn('Fallback TTS web errore:', e);
+  }
+};
+
+// ---- SESSIONE MICROFONO (richiede nativo per affidabilità continua) ----
+Luna.audio.startListening = function () {
+  if (_hasNative && window.webkit.messageHandlers.lunaASR) {
+    _nativePost('lunaASR', { cmd: 'start', lang: 'it-IT', continuous: true, vad: true });
+  } else {
+    // Fallback web: iOS Safari non è stabile in continuo
+    alert('Per conversazione continua serve l’app nativa. Sul web la dettatura può fermarsi.');
+  }
+};
+
+Luna.audio.stopListening = function () {
+  if (_hasNative && window.webkit.messageHandlers.lunaASR) {
+    _nativePost('lunaASR', { cmd: 'stop' });
+  } else {
+    // niente da fare lato web
+  }
+};
+
+// Ricezione trascrizioni dal nativo (Swift -> JS)
+window.onLunaASR = function (result) {
+  // result: { text, isFinal, timestamp }
+  // qui decidi cosa fare quando arrivano parole/frasi
+  // Esempio: invia quando isFinal è true
+  if (result?.isFinal && result.text) {
+    // usa la tua funzione esistente per inviare il messaggio
+    if (window.sendUserText) window.sendUserText(result.text);
+  }
+};
+
+// Pulsante rapido test voce (opzionale)
+if (!document.getElementById('testVoiceBtn')) {
+  const b = document.createElement('button');
+  b.id = 'testVoiceBtn';
+  b.textContent = '🔊 Prova voce';
+  b.style.cssText = 'position:fixed;right:.75rem;bottom:.75rem;z-index:999;';
+  b.onclick = ()=> Luna.audio.speak('Ciao! Questa è una prova voce.');
+  document.body.appendChild(b);
+}
 </script>
 </html>
 
