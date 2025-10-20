@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Luna Figlia - AI Assistant</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Luna Figlia – AI Assistant</title>
   <style>
     body {
       background: radial-gradient(circle at top, #1a1a2e, #0d0d1a);
-      color: #f2f2f2;
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: #e6e6fa;
+      font-family: "Segoe UI", sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -16,63 +16,49 @@
       min-height: 100vh;
       margin: 0;
       text-align: center;
-      padding: 24px;
     }
+
     h1 {
-      font-size: clamp(28px, 6vw, 46px);
-      color: #c9c9ff;
-      text-shadow: 0 0 14px #8b8bff;
-      margin: 8px 0 14px;
+      font-size: 2.4em;
+      color: #b8aaff;
+      text-shadow: 0 0 15px #8b80ff;
     }
-    .logo {
-      font-size: 52px;
-      margin-bottom: 8px;
-      filter: drop-shadow(0 0 10px rgba(255,255,150,.5));
+
+    h2 {
+      font-size: 1.3em;
+      color: #cfcfff;
+      max-width: 500px;
     }
-    p {
-      color: #ddddff;
-      max-width: 720px;
-      line-height: 1.6;
-      font-size: clamp(16px, 3.8vw, 18px);
-      margin: 0 0 22px;
-    }
+
     button {
-      background-color: #6366f1;
+      background-color: #6c63ff;
       border: none;
+      padding: 12px 25px;
       color: #fff;
-      padding: 12px 22px;
-      font-size: 16px;
-      border-radius: 10px;
-      margin-top: 8px;
+      border-radius: 8px;
       cursor: pointer;
+      font-size: 1em;
+      margin-top: 25px;
+      transition: background 0.3s;
     }
-    button:hover { background-color: #4f46e5; }
-    .hr {
-      width: min(920px, 92%);
-      height: 1px;
-      background: linear-gradient(90deg, transparent, #51517a, transparent);
-      margin: 18px 0 22px;
+
+    button:hover {
+      background-color: #837aff;
     }
-    .title {
-      font-size: clamp(24px, 5.4vw, 40px);
-      font-weight: 800;
-      letter-spacing: .5px;
-      text-shadow: 0 0 12px rgba(200,200,255,.45);
+
+    footer {
+      position: absolute;
+      bottom: 15px;
+      font-size: 0.9em;
+      color: #7a7a99;
     }
   </style>
 </head>
 <body>
-  <div class="logo">🌙</div>
-  <h1 class="title">Benvenuto in Luna Figlia</h1>
-  <div class="hr"></div>
+  <h1>🌙 Benvenuto in Luna Figlia</h1>
+  <h2>La tua intelligenza virtuale personale è pronta a crescere passo dopo passo.</h2>
+  <button onclick="alert('✨ Luna è pronta ad accendersi! ✨')">Attiva Luna</button>
 
-  <p>
-    La tua intelligenza virtuale personale sta nascendo.
-    Questa è la base della tua app IA che potrai ampliare passo dopo passo.
-  </p>
-
-  <button onclick="alert('Ciao Fabio! Presto questo bottone attiverà Luna ✨')">
-    Attiva Luna
-  </button>
+  <footer>Versione base v1.1 – © 2025 Progetto Luna</footer>
 </body>
 </html>
