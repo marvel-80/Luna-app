@@ -1146,6 +1146,128 @@ if (!document.getElementById('callBtn')) {
   // startCall();
 
 })();
+<script>
+(() => {
+  // ---------- 1) Scelta forzata voce femminile italiana ----------
+  const FEMALE_HINTS = /federica|alice|lucia|silvia|fem|female/i;
+
+  function waitForVoices() {
+    return new Promise(resolve => {
+      const v = speechSynthesis.getVoices();
+      if (v && v.length) return resolve(v);
+      speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+    });
+  }
+
+  async function pickItalianFemale() {
+    const voices = await waitForVoices();
+    // A) femminile esplicito o nomi comuni
+    let v = voices.find(x =>
+      (x.lang || '').toLowerCase().startsWith('it') && FEMALE_HINTS.test(x.name)
+    );
+    // B) qualsiasi femminile italiano (alcuni browser mettono "female" in voiceURI)
+    if (!v) v = voices.find(x =>
+      (x.lang || '').toLowerCase().startsWith('it') &&
+      /fem|female/i.test(`${x.name} ${x.voiceURI} ${x.localService}`)
+    );
+    // C) fallback: qualunque voce italiana
+    if (!v) v = voices.find(x => (x.lang || '').toLowerCase().startsWith('it'));
+    return v || null;
+  }
+
+  // Hook: rimpiazzo parlato di Luna con la voce scelta
+  window.Luna = window.Luna || {};
+  window.Luna.api = window.Luna.api || {};
+  const oldSpeak = window.Luna.api.speak;
+
+  window.Luna.api.speak = async function (text) {
+    if (!text) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      const v = await pickItalianFemale();
+      if (v) u.voice = v;
+      u.lang = 'it-IT';
+      u.rate = 0.96;
+      u.pitch = 1.04;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    } catch (e) {
+      // fallback al vecchio speak se esiste
+      if (typeof oldSpeak === 'function') return oldSpeak(text);
+      console.warn('TTS fallback:', e);
+    }
+  };
+
+  // ---------- 2) Nascondi menù voci (Eddy/Sandy/Reed) ----------
+  const hideVoiceUI = () => {
+    const cand = [
+      document.querySelector('#voiceSelect'),
+      document.querySelector('select[name="voice"]'),
+      document.querySelector('select[name="voiceSelect"]')
+    ].find(Boolean);
+    const box = cand?.closest('.row, .setting, .card, div');
+    (box || cand)?.style?.setProperty('display', 'none', 'important');
+  };
+  hideVoiceUI();
+
+  // ---------- 3) Conversazione continua (start/stop) ----------
+  try {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR) {
+      const rec = new SR();
+      rec.lang = 'it-IT';
+      rec.continuous = true;
+      rec.interimResults = true;
+
+      let active = false;
+      let pausedForTTS = false;
+
+      function start() {
+        if (active) return;
+        active = true;
+        try { rec.start(); } catch {}
+      }
+      function stop() {
+        active = false;
+        try { rec.stop(); } catch {}
+      }
+
+      rec.onresult = (e) => {
+        const r = e.results[e.results.length - 1];
+        if (!r) return;
+        if (r.isFinal) {
+          const text = r[0].transcript.trim();
+          // comandi per chiudere la “chiamata”
+          if (/(chiudi|termina|stoppa).*(chiamata|microfono)?/i.test(text)) {
+            stop();
+            return;
+          }
+          if (window.sendUserText) window.sendUserText(text);
+        }
+      };
+
+      // se la sintesi parla, metti in pausa il riconoscimento
+      const onTTSStart = () => { if (active) { pausedForTTS = true; try { rec.stop(); } catch {} } };
+      const onTTSEnd   = () => { if (active || pausedForTTS) { pausedForTTS = false; start(); } };
+      window.speechSynthesis.addEventListener('voiceschanged', ()=>{}); // no-op per inizializzare
+      window.speechSynthesis.addEventListener('start', onTTSStart);
+      window.speechSynthesis.addEventListener('end', onTTSEnd);
+
+      rec.onend = () => { if (active && !speechSynthesis.speaking) start(); };
+
+      // collega al pulsante microfono se esiste
+      const micBtn = document.querySelector('#micBtn, [data-role="mic"], .mic-btn, button[title*="microfono"]');
+      if (micBtn) {
+        micBtn.onclick = () => (active ? stop() : start());
+        micBtn.title = 'Tocca per avviare/fermare la conversazione continua';
+      }
+      // esponi API per eventuali comandi vocali/testo
+      window.LunaVoice = { start, stop };
+    }
+  } catch (e) {
+    console.warn('ASR continuous mode disabled:', e);
+  }
+})();
 </script>
 </html>
 
