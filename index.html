@@ -829,6 +829,39 @@ if (!document.getElementById('testVoiceBtn')) {
   b.onclick = ()=> Luna.audio.speak('Ciao! Questa è una prova voce.');
   document.body.appendChild(b);
 }
+import AVFoundation
+
+class LunaTTS: NSObject {
+  private let synth = AVSpeechSynthesizer()
+
+  func speak(_ payload: [String: Any]) {
+    guard let text = payload["text"] as? String, !text.isEmpty else { return }
+    let rate  = (payload["rate"]  as? Double) ?? 0.96
+    let pitch = (payload["pitch"] as? Double) ?? 1.04
+    let lang  = (payload["lang"]  as? String) ?? "it-IT"
+    let hint  = (payload["voiceHint"] as? String)?.lowercased() ?? "federica"
+
+    let uttr = AVSpeechUtterance(string: text)
+    uttr.voice = pickVoice(lang: lang, hint: hint)   // Federica premium se presente
+    uttr.rate  = AVSpeechUtteranceDefaultSpeechRate * Float(rate)
+    uttr.pitchMultiplier = Float(pitch)
+
+    try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+    try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+    synth.stopSpeaking(at: .immediate)
+    synth.speak(uttr)
+  }
+
+  private func pickVoice(lang: String, hint: String) -> AVSpeechSynthesisVoice? {
+    let all = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == lang }
+    // premium se disponibile
+    if #available(iOS 16.0, *) {
+      if let v = all.first(where: { $0.name.lowercased().contains(hint) && $0.quality == .premium }) { return v }
+    }
+    if let v = all.first(where: { $0.name.lowercased().contains(hint) }) { return v }
+    return all.first
+  }
+}
 </script>
 </html>
 
