@@ -915,6 +915,17 @@ class LunaASR: NSObject {
     }
   }
 }
+class Bridge: NSObject, WKScriptMessageHandler {
+  let tts = LunaTTS()
+  let asr = LunaASR()
+
+  func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+    if message.name == "lunaTTS", let p = message.body as? [String: Any] { tts.speak(p) }
+    if message.name == "lunaASR", let p = message.body as? [String: Any] {
+      if (p["cmd"] as? String) == "start" { asr.start() } else { asr.stop() }
+    }
+  }
+}
 </script>
 </html>
 
