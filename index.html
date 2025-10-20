@@ -524,6 +524,25 @@ Luna.api.speak = async function (text) {
   }
 })();
 </script>
+<script>
+(async () => {
+  // Forza uso voce Federica HQ su iOS se presente
+  await new Promise(r => setTimeout(r, 1500)); // attesa caricamento voci
+  const voices = speechSynthesis.getVoices();
+  const federicaHQ = voices.find(v =>
+    v.name.toLowerCase().includes('federica') &&
+    v.localService &&
+    v.lang === 'it-IT'
+  );
+  if (federicaHQ) {
+    localStorage.setItem('preferredVoice', federicaHQ.name);
+    console.log('✅ Federica HQ trovata:', federicaHQ.name);
+  } else {
+    console.warn('⚠️ Federica HQ non trovata. Controlla che sia scaricata in Impostazioni > Voce.');
+  }
+})();
+</script>
+</html>
 </html>
   
   
