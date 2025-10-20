@@ -457,92 +457,123 @@ setBadge('Pronta');
 })();
 <script>
 // --- Preferenze voce iOS/Safari ---
-const PREFERRED_VOICE_NAME = 'Federica';
-const PREFERRED_LANG = 'it-IT';
-
-// Aspetta che Safari carichi l’elenco delle voci
-function waitForVoices() {
-  return new Promise(resolve => {
-    const have = speechSynthesis.getVoices();
-    if (have && have.length) return resolve(have);
-    speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
-  });
-}
-
-// Prova a prendere Federica; in fallback qualsiasi voce italiana
-async function getPreferredVoice() {
-  const voices = await waitForVoices();
-  let v = voices.find(v => /federica/i.test(v.name));
-  if (!v) v = voices.find(v => (v.lang || '').toLowerCase().startsWith('it'));
-  return v || voices[0] || null;
-}
-// --- Funzione principale che fa parlare Luna ---
-Luna = window.Luna || {};
-Luna.api = Luna.api || {};
-
-Luna.api.speak = async function (text) {
-  if (!text) return;
-
-  const utter = new SpeechSynthesisUtterance(text);
-  const v = await getPreferredVoice();
-  if (v) utter.voice = v;
-
-  utter.lang = 'it-IT';
-  utter.rate = 0.96;  // velocità consigliata
-  utter.pitch = 1.04; // tono consigliato
-
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utter);
-};
-</script>
 <script>
-(async () => {
-  // Attende che Safari carichi tutte le voci locali
-  function waitForVoices() {
+(function(){
+  // Candidati possibili per Federica premium/qualità elevata su iOS
+  const CANDIDATES = [
+    'Federica (premium)',
+    'Federica (qualità elevata)',
+    'Federica (enhanced)',
+    'Federica'
+  ];
+
+  function awaitVoices() {
     return new Promise(resolve => {
-      let voices = speechSynthesis.getVoices();
-      if (voices.length) resolve(voices);
-      else speechSynthesis.onvoiceschanged = () =>
-        resolve(speechSynthesis.getVoices());
+      const list = speechSynthesis.getVoices();
+      if (list && list.length) return resolve(list);
+      speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+      // fallback se onvoiceschanged non parte
+      setTimeout(() => resolve(speechSynthesis.getVoices()), 2000);
     });
   }
 
-  // Aspetta il caricamento
-  const voices = await waitForVoices();
+  async function pickItalianVoice() {
+    const voices = await awaitVoices();
 
-  // Cerca Federica (voce HQ di iOS)
-  const federica = voices.find(v =>
-    v.name.toLowerCase().includes('federica')
-  );
+    // 1) prova Federica (nome)
+    let v = voices.find(x =>
+      x.lang === 'it-IT' &&
+      x.name &&
+      CANDIDATES.some(c => x.name.toLowerCase().includes(c.toLowerCase()))
+    );
+    // 2) prova Federica (voiceURI)
+    if (!v) {
+      v = voices.find(x => /Federica/i.test((x.voiceURI || '') + ' ' + (x.name || '')));
+    }
+    // 3) prova voce femminile it-IT
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT' && /female|donna/i.test((x.name||'') + ' ' + (x.voiceURI||'')));
+    }
+    // 4) ultima spiaggia: qualunque it-IT
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT');
+    }
+    return v || null;
+  }
 
-  if (federica) {
-    // Salva e imposta automaticamente Federica
-    localStorage.setItem('preferredVoice', federica.name);
-    console.log('✅ Voce Federica trovata e impostata automaticamente:', federica.name);
-  } else {
-    console.warn('⚠️ Federica non trovata — Safari deve ancora caricare le voci locali.');
+  // Patch del TTS di Luna: usa sempre la voce migliore trovata
+  const oldSpeak = window.Luna?.api?.speak;
+  if (oldSpeak) {
+    window.Luna.api.speak = async function(text){
+      if (!text) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang  = 'it-IT';
+      utter.rate  = 0.96;  // velocità consigliata
+      utter.pitch = 1.04;  // tono consigliato
+
+      const v = await pickItalianVoice();
+      if (v) utter.voice = v;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utter);
+    };
   }
 })();
-</script>
 <script>
-(async () => {
-  // Forza uso voce Federica HQ su iOS se presente
-  await new Promise(r => setTimeout(r, 1500)); // attesa caricamento voci
-  const voices = speechSynthesis.getVoices();
-  const federicaHQ = voices.find(v =>
-    v.name.toLowerCase().includes('federica') &&
-    v.localService &&
-    v.lang === 'it-IT'
-  );
-  if (federicaHQ) {
-    localStorage.setItem('preferredVoice', federicaHQ.name);
-    console.log('✅ Federica HQ trovata:', federicaHQ.name);
-  } else {
-    console.warn('⚠️ Federica HQ non trovata. Controlla che sia scaricata in Impostazioni > Voce.');
+(function(){
+  const CANDIDATES = [
+    'Federica (premium)',
+    'Federica (qualità elevata)',
+    'Federica (enhanced)',
+    'Federica'
+  ];
+
+  function awaitVoices() {
+    return new Promise(resolve => {
+      const list = speechSynthesis.getVoices();
+      if (list && list.length) return resolve(list);
+      speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+      setTimeout(() => resolve(speechSynthesis.getVoices()), 2000);
+    });
+  }
+
+  async function pickItalianVoice() {
+    const voices = await awaitVoices();
+    let v = voices.find(x =>
+      x.lang === 'it-IT' &&
+      x.name &&
+      CANDIDATES.some(c => x.name.toLowerCase().includes(c.toLowerCase()))
+    );
+    if (!v) {
+      v = voices.find(x => /Federica/i.test((x.voiceURI || '') + ' ' + (x.name || '')));
+    }
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT' && /female|donna/i.test((x.name||'') + ' ' + (x.voiceURI||'')));
+    }
+    if (!v) {
+      v = voices.find(x => x.lang === 'it-IT');
+    }
+    return v || null;
+  }
+
+  const oldSpeak = window.Luna?.api?.speak;
+  if (oldSpeak) {
+    window.Luna.api.speak = async function(text){
+      if (!text) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang  = 'it-IT';
+      utter.rate  = 0.96;
+      utter.pitch = 1.04;
+
+      const v = await pickItalianVoice();
+      if (v) utter.voice = v;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utter);
+    };
   }
 })();
 </script>
-</html>
 </html>
   
   
