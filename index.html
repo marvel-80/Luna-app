@@ -926,6 +926,11 @@ class Bridge: NSObject, WKScriptMessageHandler {
     }
   }
 }
+let bridge = Bridge()
+let ucc = webView.configuration.userContentController
+ucc.add(bridge, name: "lunaTTS")
+ucc.add(bridge, name: "lunaASR")
+bridge.asr.webView = webView
 </script>
 </html>
 
