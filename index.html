@@ -1,201 +1,223 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Luna Figlia — Chat & Voce (base)</title>
-  <style>
-    :root{
-      --bg1:#0d0d1a; --bg2:#14162a;
-      --primary:#8ea4ff; --primary-2:#b8c2ff;
-      --accent:#6c63ff; --text:#e6e6fa; --muted:#9aa0c3;
-      --bubble:#1b1d34; --me:#2a2f55;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0; min-height:100vh; color:var(--text);
-      background: radial-gradient(circle at 20% 10%, var(--bg2), var(--bg1) 65%);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-      display:flex; flex-direction:column; align-items:center;
-    }
-    header{ width:100%; max-width:860px; padding:22px 18px 8px; text-align:center; }
-    h1{
-      margin:8px 0 2px; font-size: clamp(26px, 6vw, 40px); letter-spacing:.4px;
-      color:var(--primary); text-shadow: 0 0 18px rgba(140,160,255,.35);
-    }
-    .sub{color:var(--muted); font-size:clamp(14px, 3.2vw, 16px)}
-    .badge{display:inline-block; padding:6px 10px; border:1px solid #2f3263; border-radius:999px; font-size:12px; color:#c9ccff; margin-top:8px}
-    main{width:100%; max-width:860px; flex:1; display:flex; flex-direction:column; gap:10px; padding:10px 12px 16px}
-    .chat{
-      flex:1; min-height:50vh; background:rgba(255,255,255,.03); border:1px solid #2a2d52;
-      border-radius:14px; padding:12px; overflow:auto;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
-    }
-    .row{display:flex; gap:10px; align-items:center; margin-top:10px}
-    input[type="text"]{
-      flex:1; background:#12142a; border:1px solid #2a2d52; color:var(--text);
-      padding:12px 14px; border-radius:12px; outline:none; font-size:16px;
-    }
-    button{
-      background:var(--accent); color:white; border:none; padding:12px 14px;
-      border-radius:12px; font-size:15px; cursor:pointer
-    }
-    button:disabled{opacity:.6; cursor:not-allowed}
-    .ghost{background:#1b1d34; color:var(--primary-2); border:1px solid #2a2d52}
-    .bubble{max-width:80%; padding:10px 12px; margin:6px 0; border-radius:12px; line-height:1.35}
-    .luna{background:var(--bubble); border:1px solid #2a2d52}
-    .me{background:var(--me); border:1px solid #3a3f77; margin-left:auto}
-    .who{font-size:12px; color:#b8baf0; margin-bottom:2px}
-    footer{width:100%; max-width:860px; padding:8px 12px 18px; text-align:center; color:#8a8fb6; font-size:12px}
-    .pill{display:inline-flex; gap:6px; align-items:center; border:1px solid #2f3263; padding:6px 10px; border-radius:999px}
-    .hint{font-size:12px; color:#aab0df; margin-top:4px}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luna — Assistente</title>
+<style>
+:root{
+  --bg1:#0d0d1a; --bg2:#14162a; --panel:#0b1220; --line:#1e2a45;
+  --text:#e6e6fa; --muted:#9fb0d9; --accent:#6c63ff; --me:#1d3a63;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% -10%,var(--bg2),var(--bg1));
+     color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column}
+header{position:sticky;top:0;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.1));
+       backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+h1{margin:0;font-size:20px;color:#aab7ff}
+.badge{font-size:12px;color:var(--muted)}
+.container{max-width:900px;margin:14px auto;padding:0 14px;display:grid;grid-template-columns:1fr;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.chat{padding:12px;max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.bubble{padding:10px 12px;border-radius:12px;max-width:85%}
+.luna{align-self:flex-start;background:#0f1a30;border:1px solid var(--line)}
+.user{align-self:flex-end;background:var(--me)}
+.bar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+input[type=text]{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0e172b;color:var(--text)}
+button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#101b33;color:var(--text);cursor:pointer}
+button.primary{background:var(--accent);border-color:transparent;color:#fff}
+.small{font-size:12px;color:var(--muted)}
+/* Settings modal */
+#settings{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;align-items:flex-start;justify-content:center}
+#settings .box{background:#fff;color:#0b1220;border-radius:12px;border:1px solid #d8e1f0;margin-top:6vh;max-width:560px;width:92%;padding:14px}
+#settings .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#settings label{font-size:13px;color:#334}
+#settings input[type=text],#settings select,#settings input[type=range]{width:100%;padding:8px;border:1px solid #c7d2e5;border-radius:8px}
+#gear{margin-left:auto}
+@media (max-width:700px){#settings .grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
   <header>
-    <div class="badge">🌙 Progetto Luna — versione base v1.2</div>
-    <h1>Benvenuto in <strong>Luna Figlia</strong></h1>
-    <div class="sub">Chat testuale pronta. Voce: parlato in uscita; microfono se supportato dal browser.</div>
+    <h1 id="title">Luna</h1>
+    <span class="badge">Chat & Voce locale</span>
+    <button id="gear">⚙️</button>
   </header>
 
-  <main>
-    <div id="chat" class="chat" aria-live="polite"></div>
-
-    <div class="row">
-      <input id="msg" type="text" placeholder="Scrivi un messaggio per Luna…" autocomplete="off" />
-      <button id="send">Invia</button>
-      <button id="speakBtn" class="ghost" title="Leggi a voce">🔈</button>
-      <button id="micBtn" class="ghost" title="Dettatura (se disponibile)">🎤</button>
+  <div class="container">
+    <div class="card">
+      <div id="chat" class="chat" aria-live="polite"></div>
+      <div class="bar">
+        <input id="msg" type="text" placeholder="Scrivi un messaggio per Luna…">
+        <button id="send" class="primary">Invia</button>
+        <button id="speak" title="Ripeti ultima risposta">🔊</button>
+        <button id="mic" title="Dettatura">🎤</button>
+      </div>
+      <div class="small" style="padding:0 12px 12px">
+        Comandi vocali: “<em>cambia nome in Aurora</em>”, “<em>voce femminile</em> / <em>voce maschile</em>”,
+        “<em>apri impostazioni</em>”, “<em>chiudi impostazioni</em>”, “<em>velocità 1.1</em>”, “<em>tono 1.05</em>”.
+      </div>
     </div>
-    <div id="voiceHint" class="hint"></div>
-  </main>
+  </div>
 
-  <footer>
-    <div class="pill">⚠️ Tutto locale e gratuito · Nessuna connessione AI esterna (per ora)</div>
-  </footer>
+  <!-- Settings -->
+  <div id="settings">
+    <div class="box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong>Impostazioni</strong>
+        <button id="closeSettings">Chiudi</button>
+      </div>
 
-  <script>
-    // --- Utilità DOM ---
-    const chat = document.getElementById('chat');
-    const msg  = document.getElementById('msg');
-    const send = document.getElementById('send');
-    const speakBtn = document.getElementById('speakBtn');
-    const micBtn   = document.getElementById('micBtn');
-    const voiceHint= document.getElementById('voiceHint');
+      <div class="grid">
+        <div>
+          <label>Nome assistente</label>
+          <input id="nameInput" type="text" placeholder="Luna">
+        </div>
+        <div>
+          <label>Voce</label>
+          <select id="voiceSelect"></select>
+          <div class="small">Suggerite: femm. Alice/Silvia/Federica · masc. Luca/Paolo/Vittorio (se presenti sul dispositivo).</div>
+        </div>
+        <div>
+          <label>Velocità</label>
+          <input id="rate" type="range" min="0.8" max="1.3" step="0.01" value="1.0">
+        </div>
+        <div>
+          <label>Tono (pitch)</label>
+          <input id="pitch" type="range" min="0.8" max="1.3" step="0.01" value="1.05">
+        </div>
+        <div>
+          <label>Tema</label>
+          <select id="themeSelect">
+            <option value="auto">Auto (segue sistema)</option>
+            <option value="scuro">Scuro</option>
+            <option value="chiaro">Chiaro</option>
+          </select>
+        </div>
+      </div>
 
-    function addBubble(text, who='luna'){
-      const wrap = document.createElement('div');
-      const name = document.createElement('div');
-      const b    = document.createElement('div');
-      name.className='who';
-      name.textContent = who==='me' ? 'Tu' : 'Luna';
-      b.className = 'bubble ' + (who==='me' ? 'me' : 'luna');
-      b.textContent = text;
-      wrap.appendChild(name); wrap.appendChild(b);
-      chat.appendChild(wrap);
-      chat.scrollTop = chat.scrollHeight;
-    }
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+        <button id="saveSettings" class="primary">Salva</button>
+      </div>
+    </div>
+  </div>
 
-    // --- Voce: sintesi (TTS) ---
-    let itVoice = null;
-    function chooseVoice(){
-      const voices = speechSynthesis.getVoices();
-      itVoice = voices.find(v => /it-|Italian/.test(v.lang)) || voices[0] || null;
-    }
-    if ('speechSynthesis' in window){
-      chooseVoice();
-      window.speechSynthesis.onvoiceschanged = chooseVoice;
-      speakBtn.onclick = () => {
-        // leggi l’ultima risposta di Luna
-        const bubbles = chat.querySelectorAll('.bubble.luna');
-        if(!bubbles.length) return;
-        speak(bubbles[bubbles.length-1].textContent);
-      }
-    } else {
-      speakBtn.disabled = true;
-      speakBtn.title = "Lettura vocale non supportata da questo browser.";
-    }
+<script>
+/* ========== Stato & Storage ========== */
+const LS_KEY='luna_settings_v13';
+const chatEl = document.getElementById('chat');
+const msgEl  = document.getElementById('msg');
+function load(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||{name:'Luna',voice:null,rate:1,pitch:1.05,theme:'auto'} }catch{return {name:'Luna',voice:null,rate:1,pitch:1.05,theme:'auto'}}}
+function save(s){ localStorage.setItem(LS_KEY, JSON.stringify(s)); }
+function bubble(t,who='luna'){ const d=document.createElement('div'); d.className='bubble '+(who==='user'?'user':'luna'); d.textContent=t; chatEl.appendChild(d); chatEl.scrollTop=chatEl.scrollHeight; }
 
-    function speak(text){
-      if(!('speechSynthesis' in window)) return;
-      const u = new SpeechSynthesisUtterance(text);
-      if(itVoice) u.voice = itVoice;
-      u.lang = itVoice?.lang || 'it-IT';
-      u.rate = 1; u.pitch = 1.02; u.volume = 1;
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
-    }
+/* ========== UI apply ========== */
+function applySettings(s){
+  document.getElementById('title').textContent = s.name||'Luna';
+  document.getElementById('nameInput').value = s.name||'Luna';
+  document.getElementById('rate').value = s.rate||1;
+  document.getElementById('pitch').value = s.pitch||1.05;
+  document.getElementById('themeSelect').value = s.theme||'auto';
+  if(s.theme==='scuro'){ document.documentElement.style.colorScheme='dark'; }
+  else if(s.theme==='chiaro'){ document.documentElement.style.colorScheme='light'; }
+  else { document.documentElement.style.colorScheme='normal'; }
+}
 
-    // --- Voce: riconoscimento (se disponibile) ---
-    let rec = null, recognizing=false;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR){
-      rec = new SR();
-      rec.lang = 'it-IT';
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
+/* ========== TTS ========== */
+let voices=[];
+function populateVoices(){
+  voices = speechSynthesis.getVoices();
+  const sel=document.getElementById('voiceSelect'); if(!sel) return;
+  sel.innerHTML='';
+  // preferisci 3 fem + 3 masc se esistono
+  const pref = ['Alice','Silvia','Federica','Luca','Paolo','Vittorio'];
+  const it = voices.filter(v=>/it/i.test(v.lang));
+  const sorted=[...pref.map(n=>it.find(v=>v.name.includes(n))).filter(Boolean),...it.filter(v=>!pref.some(n=>v.name.includes(n)))];
+  for(const v of sorted){ const o=document.createElement('option'); o.value=v.name; o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o); }
+  const s=load(); if(s.voice && sorted.find(v=>v.name===s.voice)) sel.value=s.voice;
+}
+if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=populateVoices; setTimeout(populateVoices,300); }
 
-      rec.onstart = ()=>{ recognizing=true; micBtn.textContent = '🛑'; micBtn.classList.remove('ghost'); };
-      rec.onend   = ()=>{ recognizing=false; micBtn.textContent = '🎤'; micBtn.classList.add('ghost'); };
-      rec.onerror = ()=>{ recognizing=false; micBtn.textContent = '🎤'; };
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  const s=load();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='it-IT';
+  u.rate=s.rate||1; u.pitch=s.pitch||1.05;
+  if(s.voice){ const v=voices.find(v=>v.name===s.voice); if(v) u.voice=v; }
+  else{ const v=voices.find(v=>/it/i.test(v.lang)); if(v) u.voice=v; }
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
 
-      rec.onresult = (e)=>{
-        const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
-        if(text.trim()){
-          msg.value = text.trim();
-          handleSend();
-        }
-      };
+/* ========== STT + comandi ========== */
+let rec=null;
+function startRec(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ bubble('Il riconoscimento vocale non è supportato su questo dispositivo.','luna'); return; }
+  rec=new SR(); rec.lang='it-IT'; rec.interimResults=false; rec.maxAlternatives=1;
+  rec.onresult= async (e)=>{ const text=e.results[0][0].transcript; bubble(text,'user'); if(await handleCommand(text)) return; reply(text); };
+  rec.start();
+}
+function toNum(x){ return parseFloat(String(x).replace(',','.')); }
+function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
-      micBtn.onclick = ()=>{
-        if(!recognizing) rec.start(); else rec.stop();
-      };
-      voiceHint.textContent = '🎤 Dettatura disponibile sul tuo browser.';
-    } else {
-      micBtn.disabled = true;
-      voiceHint.textContent = '🎤 Dettatura non disponibile su questo dispositivo/navigatore. Puoi comunque scrivere e ascoltare la risposta.';
-    }
+async function handleCommand(tRaw){
+  const t=tRaw.trim().toLowerCase(); let s=load(); let changed=false;
+  // nome
+  let m=t.match(/cambia (il )?nome (in|a)\s+(.+)/i) || t.match(/chiamami\s+(.+)/i) || t.match(/il tuo nome è\s+(.+)/i);
+  if(m){ const name=(m[3]||m[1]||m[4]||m[0]).replace(/^(in|a)\s*/,'').trim(); if(name){ s.name=capitalize(name); changed=true; } }
+  // voce
+  if(/voce\s+(femminile|donna)/i.test(t)){ const pick=voices.find(v=>/it/i.test(v.lang) && /(Alice|Silvia|Federica|fem|female)/i.test(v.name))||voices.find(v=>/it/i.test(v.lang)); if(pick){ s.voice=pick.name; changed=true; } }
+  if(/voce\s+(maschile|uomo)/i.test(t)){ const pick=voices.find(v=>/it/i.test(v.lang) && /(Luca|Paolo|Vittorio|masch|male)/i.test(v.name))||voices.find(v=>/it/i.test(v.lang)); if(pick){ s.voice=pick.name; changed=true; } }
+  // velocità & tono
+  m=t.match(/velocit[aà]\s*(a|=)?\s*([0-9]+[.,]?[0-9]*)/i); if(m){ s.rate=clamp(toNum(m[2]),0.8,1.3); changed=true; }
+  if(/aumenta velocit/i.test(t)) { s.rate=clamp((s.rate||1)+0.05,0.8,1.3); changed=true; }
+  if(/(riduci|abbassa) velocit/i.test(t)) { s.rate=clamp((s.rate||1)-0.05,0.8,1.3); changed=true; }
+  m=t.match(/(tono|pitch|timbro)\s*(a|=)?\s*([0-9]+[.,]?[0-9]*)/i); if(m){ s.pitch=clamp(toNum(m[3]),0.8,1.3); changed=true; }
+  // tema
+  if(/tema scuro|dark/i.test(t)){ s.theme='scuro'; changed=true; }
+  if(/tema chiaro|light/i.test(t)){ s.theme='chiaro'; changed=true; }
+  if(/tema auto|automatico/i.test(t)){ s.theme='auto'; changed=true; }
+  // impostazioni pannello
+  if(/apri (le )?impostazioni/i.test(t)){ document.getElementById('settings').style.display='flex'; return true; }
+  if(/chiudi (le )?impostazioni/i.test(t)){ document.getElementById('settings').style.display='none'; return true; }
 
-    // --- Bot locale (placeholder) ---
-    function lunaReply(userText){
-      const t = userText.toLowerCase().trim();
+  if(changed){ save(s); applySettings(s); speak('Impostazioni aggiornate.'); return true; }
+  return false;
+}
 
-      // Regole semplici
-      if(!t) return "Dimmi pure, ti ascolto.";
-      if(/ciao|buongiorno|buonasera|hey/.test(t)) return "Ciao! Sono qui. Come posso aiutarti?";
-      if(/come stai/.test(t)) return "Bene grazie! E tu?";
-      if(/nome/.test(t)) return "Mi chiamo Luna Figlia. Piacere!";
-      if(/(che )?ora|orario/.test(t)) return `Sono le ${new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})}.`;
-      if(/data|che giorno/.test(t)) return `Oggi è ${new Date().toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'})}.`;
-      if(/chi ti ha creat|cos\'?è luna/.test(t)) return "Sei tu il mio creatore! Questa è una versione base che crescerà passo dopo passo.";
-      if(/aiut|cosa sai fare|funzion/i.test(t)) return "Per ora posso chattare, leggere a voce e (se possibile) ascoltare tramite microfono. A breve aggiungeremo funzioni più intelligenti!";
+/* ========== Chat demo locale ========== */
+function reply(text){
+  const s=load();
+  const r = `Ciao, sono ${s.name}. Hai detto: “${text}”. Posso cambiare nome o voce dalle impostazioni.`;
+  bubble(r,'luna'); speak(r);
+}
 
-      // mini “risposte empatiche”
-      if(/grazie|thank/.test(t)) return "Di nulla! 💫";
-      if(/ok|va bene/.test(t)) return "Perfetto. Procediamo!";
+/* ========== Eventi UI ========== */
+document.getElementById('send').onclick=()=>{ const v=msgEl.value.trim(); if(!v) return; msgEl.value=''; bubble(v,'user'); handleCommand(v).then(done=>{ if(!done) reply(v); }); };
+msgEl.addEventListener('keydown',(e)=>{ if(e.key==='Enter') document.getElementById('send').click(); });
+document.getElementById('speak').onclick=()=>{ const last=chatEl.querySelector('.bubble.luna:last-child')?.textContent || `Ciao, sono ${load().name}.`; speak(last); };
+document.getElementById('mic').onclick=startRec;
 
-      // Fallback
-      return "Ho capito. Per ora sono una versione base: spiegami meglio e ci provo!";
-    }
+document.getElementById('gear').onclick=()=>{ document.getElementById('settings').style.display='flex'; };
+document.getElementById('closeSettings').onclick=()=>{ document.getElementById('settings').style.display='none'; };
+document.getElementById('saveSettings').onclick=()=>{
+  const s=load();
+  s.name=document.getElementById('nameInput').value.trim()||'Luna';
+  s.rate=parseFloat(document.getElementById('rate').value);
+  s.pitch=parseFloat(document.getElementById('pitch').value);
+  s.theme=document.getElementById('themeSelect').value;
+  const chosen=document.getElementById('voiceSelect').value; s.voice=chosen||null;
+  save(s); applySettings(s); document.getElementById('settings').style.display='none'; speak('Impostazioni salvate.');
+};
 
-    // --- Gestione invio ---
-    function handleSend(){
-      const text = msg.value.trim();
-      if(!text) return;
-      addBubble(text, 'me');
-      msg.value = '';
-      const reply = lunaReply(text);
-      setTimeout(()=>{
-        addBubble(reply, 'luna');
-        speak(reply); // parla sempre la risposta (puoi cambiare se vuoi)
-      }, 200);
-    }
-
-    send.onclick = handleSend;
-    msg.addEventListener('keydown', (e)=>{ if(e.key==='Enter') handleSend(); });
-
-    // Messaggio di benvenuto
-    addBubble("Ciao! Sono Luna. Scrivimi un messaggio, premi Invia oppure usa 🎤 se disponibile. Posso anche leggere le risposte con 🔈.", 'luna');
-  </script>
+/* ========== Boot ========== */
+(function boot(){
+  const s=load(); applySettings(s);
+  bubble('Ciao! Sono Luna. Scrivimi o usa 🎤 per parlare. Posso leggere le risposte con 🔊.','luna');
+  populateVoices();
+})();
+</script>
 </body>
 </html>
