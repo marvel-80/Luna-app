@@ -404,6 +404,58 @@ setBadge('Pronta');
   Luna.api.setTheme = Luna.api.setTheme || function(theme){
     document.documentElement.dataset.theme = theme;
   };
+  <!-- SmartReplies v0.2 (IT) -->
+<script>
+(function () {
+  // elenco intent semplici -> risposte naturali
+  const intents = [
+    { test: /(ciao|ehi|hey|buongiorno|buonasera)\b/i,
+      reply: () => "Ciao! Eccomi qui 😊 Come posso aiutarti?" },
+
+    { test: /(come\s+stai|come ti senti)/i,
+      reply: () => "Sto bene e pronta ad aiutarti! Vuoi provare qualcosa adesso?" },
+
+    { test: /(apri|mostra).*(impostazioni|settaggi|rotellina)/i,
+      reply: () => { try { document.getElementById('settingsBtn').click(); } catch(e){} 
+                     return "Apro le impostazioni. Dimmi pure cosa vuoi cambiare."; } },
+
+    { test: /(cambia|imposta).*(nome)/i,
+      reply: () => "Ok! Dimmi: \"cambia nome in ...\" e lo aggiorno subito." },
+
+    { test: /(voce|parla).*(femminile|maschile)/i,
+      reply: () => "Posso cambiare voce dalle impostazioni. Vuoi che le apra?" },
+
+    { test: /(tema|colore).*(scuro|dark|notte)/i,
+      reply: () => "Imposto un tema scuro elegante. Vuoi provarlo ora?" },
+
+    { test: /(tema|colore).*(chiaro|light|bianco)/i,
+      reply: () => "Va bene, passo al tema chiaro. Dimmi se preferisci testo più marcato." },
+
+    { test: /(microfono|ascolta|ascolto)/i,
+      reply: () => "Quando premi il microfono ti ascolto e rispondo a voce; se scrivi, rispondo in chat." },
+
+    { test: /(grazie|perfetto|ok|va bene)\b/i,
+      reply: () => "Di nulla! Se vuoi, posso cambiare voce, nome o tema." },
+  ];
+
+  function smartReply(input) {
+    const msg = String(input || "").trim();
+    if (!msg) return "Dimmi pure 😊";
+    for (const it of intents) {
+      if (it.test.test(msg)) return it.reply();
+    }
+    // fallback: niente “pappagallo”
+    return "Ricevuto! Posso cambiare voce, nome, tema o ascoltarti al microfono. Dimmi tu.";
+  }
+
+  // Hook: se esiste replyTo lo avvolgo, altrimenti uso smartReply
+  const oldReply = window.replyTo;
+  window.replyTo = function (input) {
+    try { return smartReply(input); }
+    catch (e) { return oldReply ? oldReply(input) : "Ok!"; }
+  };
+})();
+</script>
 </script>
   </html>
   
