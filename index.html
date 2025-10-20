@@ -375,5 +375,36 @@ $("#modeHint").textContent = S.speakOnlyWhenMic ? 'Testo (voce con microfono)' :
 setBadge('Pronta');
 </script>
 </body>
+<script>
+  // --- LUNA MOD MANAGER (da incollare una sola volta) ---
+  window.Luna = window.Luna || {};
+  Luna.mods = Luna.mods || {};
+  Luna.api = Luna.api || {};
+
+  Luna.registerMod = function(name, version, apply) {
+    const cur = Luna.mods[name]?.version || "0.0.0";
+    const newer = (a,b)=>a.split('.').map(Number).reduce((s,v,i)=>s||(v-(b.split('.')[i]|0)),0)>0;
+    if (!Luna.mods[name] || newer(version, cur)) {
+      try {
+        const result = apply(Luna);
+        Luna.mods[name] = { version, active:true, appliedAt: Date.now(), result };
+        console.log(`[Luna] Mod "${name}" v${version} applicato (prima c'era v${cur||'—'})`);
+      } catch(e) {
+        console.error(`[Luna] Mod "${name}" errore:`, e);
+      }
+    } else {
+      console.log(`[Luna] Mod "${name}" ignorato: v${version} ≤ v${cur}`);
+    }
+  };
+
+  Luna.api.speak = Luna.api.speak || function(text){
+    const u = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(u);
+  };
+  Luna.api.setTheme = Luna.api.setTheme || function(theme){
+    document.documentElement.dataset.theme = theme;
+  };
+</script>
   </html>
+  
   
