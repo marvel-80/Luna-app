@@ -476,9 +476,25 @@ async function getPreferredVoice() {
   if (!v) v = voices.find(v => (v.lang || '').toLowerCase().startsWith('it'));
   return v || voices[0] || null;
 }
+// --- Funzione principale che fa parlare Luna ---
+Luna = window.Luna || {};
+Luna.api = Luna.api || {};
+
+Luna.api.speak = async function (text) {
+  if (!text) return;
+
+  const utter = new SpeechSynthesisUtterance(text);
+  const v = await getPreferredVoice();
+  if (v) utter.voice = v;
+
+  utter.lang = 'it-IT';
+  utter.rate = 0.96;  // velocità consigliata
+  utter.pitch = 1.04; // tono consigliato
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+};
 </script>
-</script>
-</script>
-  </html>
+</html>
   
   
