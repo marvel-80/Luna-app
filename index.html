@@ -1268,6 +1268,203 @@ if (!document.getElementById('callBtn')) {
     console.warn('ASR continuous mode disabled:', e);
   }
 })();
+/* ===================== LUNA — UNIFIED PATCH (v3) =====================
+   - Voce femminile forzata (niente più Eddy/Sandy/Reed visibili)
+   - Conversazione continua (riavvio automatico del microfono)
+   - PWA: manifest + service worker generati al volo (nessun file extra)
+   - Pulsanti: 🔊 Prova voce & 📞 Avvia/Chiudi chiamata
+   ==================================================================== */
+(() => {
+  if (window.__LUNA_UNIFIED_PATCH__) return;
+  window.__LUNA_UNIFIED_PATCH__ = true;
+
+  // ---------- 0) BADGE VERSIONE ----------
+  (function addVersionBadge(){
+    const b = document.createElement('div');
+    b.textContent = 'Luna Patch v3 attiva ✅';
+    b.style.cssText = 'position:fixed;left:10px;top:10px;padding:6px 10px;border-radius:8px;background:#0b0d12;color:#fff;font:12px/1.2 system-ui;opacity:.8;z-index:99999';
+    document.body.appendChild(b);
+    setTimeout(()=>b.remove(), 3500);
+  })();
+
+  // ---------- 1) Nascondi select voci & preferenza femminile ----------
+  function hideVoiceMenu() {
+    const selects = [...document.querySelectorAll('select, [role="listbox"]')];
+    const isVoiceSelect = sel => {
+      const txt = (sel.innerText||'') + ' ' + (sel.value||'');
+      return /Eddy|Sandy|Reed/i.test(txt) || /voce/i.test(txt);
+    };
+    const target = selects.find(isVoiceSelect);
+    if (target) {
+      const wrap = target.closest('.row,.setting,.field,.card,section,div') || target;
+      wrap.style.display = 'none';
+    }
+  }
+  new MutationObserver(hideVoiceMenu).observe(document.documentElement,{childList:true,subtree:true});
+  hideVoiceMenu();
+  localStorage.setItem('preferredVoice','federica');
+
+  // ---------- 2) TTS: forza voce femminile italiana ----------
+  const FEMALE_HINTS = /federica|alice|silvia|sofia|giulia|martina|valentina|female|donna|femmina/i;
+  function waitForVoices() {
+    return new Promise(res=>{
+      const v = speechSynthesis.getVoices();
+      if (v && v.length) return res(v);
+      speechSynthesis.onvoiceschanged = () => res(speechSynthesis.getVoices());
+      try { const u = new SpeechSynthesisUtterance(' '); speechSynthesis.speak(u); speechSynthesis.cancel(); } catch {}
+      setTimeout(()=>res(speechSynthesis.getVoices()||[]), 1000);
+    });
+  }
+  async function pickItalianFemale() {
+    const voices = await waitForVoices();
+    const it = voices.filter(v => (v.lang||'').toLowerCase().startsWith('it'));
+    let v = it.find(v => FEMALE_HINTS.test((v.name||'')+' '+(v.voiceURI||'')));
+    if (!v) v = it[0] || voices[0] || null;
+    return v;
+  }
+  window.Luna = window.Luna || {}; window.Luna.api = window.Luna.api || {};
+  const _oldSpeak = window.Luna.api.speak;
+  window.Luna.api.speak = async function(text){
+    if (!text) return;
+    try{
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'it-IT'; u.rate = 0.96; u.pitch = 1.04;
+      const v = await pickItalianFemale(); if (v) u.voice = v;
+      try { speechSynthesis.cancel(); } catch {}
+      speechSynthesis.speak(u);
+    } catch(e){
+      if (typeof _oldSpeak === 'function') return _oldSpeak(text);
+    }
+  };
+
+  // ---------- 3) Conversazione continua (ASR con auto-restart) ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, micOn = false, pausedForTTS = false, restartTimer = null;
+
+  function ensureRecognizer(){
+    if (rec) return rec;
+    if (!SR) return null;
+    rec = new SR();
+    rec.lang = 'it-IT';
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.onresult = (ev)=>{
+      const last = ev.results[ev.results.length-1];
+      if (!last) return;
+      if (last.isFinal){
+        const text = (last[0] && last[0].transcript || '').trim();
+        if (!text) return;
+        if (/(chiudi|termina|ferma).*(chiamata|microfono)?/i.test(text)) { stopCall(); window.Luna.api.speak('Chiamata chiusa.'); return; }
+        if (typeof window.sendUserText === 'function') window.sendUserText(text);
+      }
+    };
+    const restart = ()=>{
+      if (!micOn) return;
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(()=>{ try{ rec.start(); }catch{} }, 200);
+    };
+    rec.onend = restart;
+    rec.onerror = restart;
+    try{
+      speechSynthesis.addEventListener('start', ()=>{ if (micOn){ pausedForTTS = true; try{ rec.stop(); }catch{} }});
+      speechSynthesis.addEventListener('end',   ()=>{ if (micOn && pausedForTTS){ pausedForTTS=false; restart(); }});
+    }catch{}
+    return rec;
+  }
+
+  function startCall(){
+    const R = ensureRecognizer();
+    if (!R){ alert('Riconoscimento vocale continuo non supportato in questo browser. Usa Safari/PWA.'); return; }
+    if (micOn) return;
+    micOn = true;
+    try { R.start(); } catch {}
+    showCallUI(true);
+    window.Luna.api.speak('Sono in ascolto. Dimmi pure.');
+  }
+  function stopCall(){
+    micOn = false;
+    try { rec && rec.stop(); } catch {}
+    showCallUI(false);
+  }
+  window.startCall = startCall;
+  window.stopCall  = stopCall;
+
+  // ---------- 4) UI: pulsanti prova voce & chiamata ----------
+  function showCallUI(active){
+    let bar = document.getElementById('luna-callbar');
+    if (!bar){
+      bar = document.createElement('div');
+      bar.id = 'luna-callbar';
+      bar.style.cssText = 'position:fixed;right:12px;bottom:12px;display:flex;gap:8px;z-index:99998';
+      const btnStart = document.createElement('button');
+      btnStart.id='luna-call-start'; btnStart.textContent='📞 Avvia chiamata';
+      const btnStop  = document.createElement('button');
+      btnStop.id='luna-call-stop';  btnStop.textContent='🛑 Chiudi chiamata';
+      [btnStart,btnStop].forEach(b=>{
+        b.style.cssText='padding:.6rem .8rem;border:0;border-radius:10px;background:#2470ff;color:#fff;font:14px system-ui;cursor:pointer';
+      });
+      btnStart.onclick = startCall;
+      btnStop.onclick  = stopCall;
+      bar.append(btnStart, btnStop);
+      document.body.appendChild(bar);
+    }
+    const s = document.getElementById('luna-call-start');
+    const t = document.getElementById('luna-call-stop');
+    if (s && t){ s.style.display = active?'none':'inline-block'; t.style.display = active?'inline-block':'none'; }
+  }
+  (function addTestButton(){
+    if (document.getElementById('luna-voice-test')) return;
+    const b = document.createElement('button');
+    b.id='luna-voice-test'; b.textContent='🔊 Prova voce';
+    b.style.cssText='position:fixed;left:12px;bottom:12px;padding:.6rem .8rem;border:0;border-radius:10px;background:#18a957;color:#fff;font:14px system-ui;z-index:99998';
+    b.onclick = ()=> window.Luna.api.speak('Ciao! Questa è una prova voce.');
+    document.body.appendChild(b);
+  })();
+  showCallUI(false);
+
+  // ---------- 5) PWA: manifest + service worker (al volo) ----------
+  (function setupPWA(){
+    const manifest = {
+      name: "Luna",
+      short_name: "Luna",
+      start_url: "./index.html?source=pwa",
+      display: "standalone",
+      orientation: "portrait",
+      background_color: "#0b0d12",
+      theme_color: "#0b0d12",
+      icons: [
+        { src: "data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 512 512%27><rect width=%27512%27 height=%27512%27 rx=%2796%27 fill=%27%230b0d12%27/><circle cx=%27256%27 cy=%27256%27 r=%27140%27 fill=%27%23ffffff%27/><circle cx=%27306%27 cy=%27226%27 r=%27140%27 fill=%27%230b0d12%27/></svg>", sizes: "192x192", type: "image/svg+xml" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+    const link = document.createElement('link'); link.rel='manifest'; link.href=URL.createObjectURL(blob);
+    document.head.appendChild(link);
+
+    const swCode = `
+      const C='luna-pwa-v1';
+      const ASSETS=['./','./index.html'];
+      self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)))});
+      self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k)))))});
+      self.addEventListener('fetch',e=>{
+        const r=e.request;
+        e.respondWith(
+          caches.match(r).then(cached => cached || fetch(r).then(res=>{
+            try{const copy=res.clone(); if(r.method==='GET'){caches.open(C).then(c=>c.put(r,copy))} }catch(e){}
+            return res;
+          }).catch(()=>cached))
+        );
+      });
+    `;
+    if ('serviceWorker' in navigator) {
+      const swURL = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'}));
+      navigator.serviceWorker.register(swURL).catch(()=>{});
+    }
+    const meta1=document.createElement('meta'); meta1.name='apple-mobile-web-app-capable'; meta1.content='yes';
+    const meta2=document.createElement('meta'); meta2.name='apple-mobile-web-app-status-bar-style'; meta2.content='black-translucent';
+    document.head.append(meta1, meta2);
+  })();
+
+})();
 </script>
 </html>
 
