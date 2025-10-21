@@ -1605,6 +1605,83 @@ if (!document.getElementById('callBtn')) {
   }
 })();
 </script>
+<script>
+/* LUNA SAFE MODE – Push-to-Talk stabile su iPhone (niente microfono in background) */
+(()=>{ 
+  // 0) Spegni qualunque ascolto rimasto e disattiva auto-restart
+  try{ window.__LUNA_DISABLE_AUTORESTART__ = true; }catch{} 
+  try{ window.stopCall && window.stopCall(); }catch(e){}
+  try{ if (window.__LUNA_REC__) { window.__LUNA_REC__.onend=null; window.__LUNA_REC__.onerror=null; try{window.__LUNA_REC__.stop();}catch{} } }catch{}
+
+  // 1) Se il browser non supporta ASR web, esci
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { console.warn('ASR non supportato qui'); return; }
+
+  // 2) Un solo recognizer, niente continuo, niente auto-restart
+  const R = new SR();
+  R.lang = 'it-IT';
+  R.interimResults = false;
+  R.continuous = false;
+  window.__LUNA_REC__ = R;
+
+  let listening = false;
+
+  function startOnce(){
+    if (listening) return;
+    listening = true;
+    try { R.start(); } catch {}
+  }
+  function stopNow(){
+    try { R.stop(); } catch {}
+  }
+
+  R.onresult = (ev)=>{
+    try{
+      const text = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript || '').trim();
+      if (text && typeof window.sendUserText === 'function') window.sendUserText(text);
+    }catch{}
+  };
+  R.onend   = ()=>{ listening = false; };
+  R.onerror = ()=>{ listening = false; };
+
+  // 3) Pulsante PUSH-TO-TALK (premi e tieni per parlare)
+  let btn = document.getElementById('luna-ptt');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'luna-ptt';
+    btn.textContent = '🎤 Tieni premuto per parlare';
+    btn.style.cssText = 'position:fixed;left:12px;bottom:12px;padding:.7rem 1rem;border:0;border-radius:12px;background:#2470ff;color:#fff;font:15px system-ui;z-index:99999';
+    document.body.appendChild(btn);
+  }
+
+  // Touch (iPhone) e mouse
+  const press   = (e)=>{ e.preventDefault(); startOnce(); btn.textContent = '🎙️ In ascolto… rilascia per inviare'; };
+  const release = (e)=>{ e.preventDefault(); stopNow(); btn.textContent = '🎤 Tieni premuto per parlare'; };
+
+  btn.addEventListener('touchstart', press,   {passive:false});
+  btn.addEventListener('touchend',   release, {passive:false});
+  btn.addEventListener('mousedown',  press);
+  btn.addEventListener('mouseup',    release);
+  btn.addEventListener('mouseleave', release);
+
+  // 4) Stop automatico quando esci / metti in background / cambi app
+  ['visibilitychange','pagehide','beforeunload','blur'].forEach(ev=>{
+    window.addEventListener(ev, ()=>{ if (document.hidden || ev!=='visibilitychange') release(new Event('manual')); }, {passive:true});
+  });
+
+  // 5) Stop SOS (se rimane incantato): doppio tap veloce sul bottone
+  let lastTap=0;
+  btn.addEventListener('click', ()=>{
+    const now=Date.now();
+    if (now-lastTap<400){ // doppio tap
+      try { R.onend=null; R.onerror=null; R.stop(); } catch {}
+      btn.textContent='🛑 Microfono stoppato';
+      setTimeout(()=>btn.textContent='🎤 Tieni premuto per parlare',900);
+    }
+    lastTap=now;
+  });
+})();
+</script>
 </html>
 
 
