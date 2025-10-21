@@ -1467,6 +1467,144 @@ if (!document.getElementById('callBtn')) {
 })();
 </script>
 <script src="./luna-patch-v3.js?v=1"></script>
+<script>
+/* =============== LUNA REPAIR PATCH – DIAGNOSI & AUTO-FIX =============== */
+(function () {
+  const TAG = "🔧 LunaRepair";
+  try {
+    console.group(TAG);
+
+    /* 1) PULIZIA SCRIPT “STRANI” (Swift/AVFoundation messi nell’HTML) */
+    const killPatterns = [
+      /import\s+AVFoundation/i,
+      /import\s+Speech/i,
+      /import\s+WebKit/i,
+      /class\s+LunaTTS/i,
+      /class\s+LunaASR/i
+    ];
+    let removed = 0;
+    document.querySelectorAll("script").forEach(s => {
+      const t = (s.textContent || "");
+      if (killPatterns.some(rx => rx.test(t))) {
+        s.remove();
+        removed++;
+      }
+    });
+    console.log(`Pulizia script non-web: rimossi ${removed}.`);
+
+    /* 2) TTS UNIFICATO: scegli una voce IT femminile (Federica se c’è) */
+    const CANDIDATES = ["federica","silvia","alice","giulia","elena","paola","chiara"];
+    function waitVoices() {
+      return new Promise(res => {
+        const v = window.speechSynthesis?.getVoices?.();
+        if (v && v.length) return res(v);
+        const h = () => {
+          const list = window.speechSynthesis.getVoices();
+          if (list && list.length) {
+            window.speechSynthesis.onvoiceschanged = null;
+            res(list);
+          }
+        };
+        window.speechSynthesis.onvoiceschanged = h;
+        // fallback timer
+        setTimeout(h, 1500);
+      });
+    }
+    async function pickItalianFemale() {
+      const voices = await waitVoices();
+      if (!voices || !voices.length) return null;
+      const it = voices.filter(v => (v.lang || "").toLowerCase().startsWith("it"));
+      // 1) match per nome “federica” etc
+      let v = it.find(x => CANDIDATES.some(n => (x.name || "").toLowerCase().includes(n)));
+      // 2) qualsiasi femminile (dove disponibile info del nome)
+      if (!v) v = it.find(x => /female| donna/i.test(x.name || ""));
+      // 3) prima voce italiana
+      return v || it[0] || null;
+    }
+
+    // Espone Luna se manca
+    window.Luna = window.Luna || {};
+    Luna.api = Luna.api || {};
+
+    // Sovrascrive/installa speak UNA VOLTA con parametri coerenti
+    Luna.api.speak = (function () {
+      let installed = false;
+      return async function speak(text) {
+        try {
+          if (!text || !window.speechSynthesis) return;
+          if (!installed) { console.log(`${TAG}: install TTS`); installed = true; }
+          const u = new SpeechSynthesisUtterance(String(text));
+          u.lang = "it-IT";
+          u.rate = 0.96;
+          u.pitch = 1.04;
+          const v = await pickItalianFemale();
+          if (v) u.voice = v;
+          // Evita coda/eco
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        } catch (e) {
+          console.warn(`${TAG} speak error`, e);
+        }
+      };
+    })();
+
+    /* 3) MENU VOCI: mostra una sola opzione “Voce (automatica femminile)” */
+    (async () => {
+      const voiceSelect =
+        document.querySelector("#voiceSelect, select[name=voice], .voice-select, select");
+      if (voiceSelect && voiceSelect.tagName === "SELECT") {
+        // Svuota e crea 1 sola opzione
+        while (voiceSelect.firstChild) voiceSelect.removeChild(voiceSelect.firstChild);
+        const opt = document.createElement("option");
+        opt.value = "auto-it-female";
+        opt.textContent = "Voce italiana (automatica femminile)";
+        voiceSelect.appendChild(opt);
+        voiceSelect.value = "auto-it-female";
+        // Disattiva l’interazione se vuoi nasconderlo del tutto:
+        // voiceSelect.style.display = "none";
+        console.log("Menu voce semplificato → 1 opzione femminile.");
+      }
+    })();
+
+    /* 4) CONVERSAZIONE CONTINUA (non chiudere la “chiamata” da sola) */
+    // Flag persistente
+    const prefsKey = "luna-prefs";
+    const prefs = (() => {
+      try { return JSON.parse(localStorage.getItem(prefsKey) || "{}"); } catch { return {}; }
+    })();
+    prefs.continuous = true;
+    localStorage.setItem(prefsKey, JSON.stringify(prefs));
+    // Prova a “bloccare” eventuale auto-stop
+    const tryHook = (name) => {
+      if (typeof window[name] === "function" && !window[name].__patched) {
+        const orig = window[name];
+        window[name] = function (...args) {
+          if (prefs.continuous && name.toLowerCase().includes("stop")) {
+            console.log(`${TAG}: prevenuto ${name} (continuous ON)`);
+            return; // non chiudere
+          }
+          return orig.apply(this, args);
+        };
+        window[name].__patched = true;
+        console.log(`Hook funzione: ${name}`);
+      }
+    };
+    ["stopCall","endCall","hangup","closeMic","stopListening"].forEach(tryHook);
+
+    /* 5) DIAGNOSI DI BASE: stampa stato voci */
+    (async () => {
+      const v = await pickItalianFemale();
+      if (v) console.log(`Voce selezionata: ${v.name} (${v.lang})`);
+      else console.warn("Nessuna voce italiana trovata dal browser.");
+      console.groupEnd(TAG);
+    })();
+
+  } catch (e) {
+    console.groupEnd(TAG);
+    console.error("LunaRepair error:", e);
+  }
+})();
+</script>
 </html>
 
 
